@@ -32,6 +32,13 @@ from quota_manager import QuotaManager
 from router import NoProviderAvailable, Router
 from ensemble import EnsembleOrchestrator
 from self_healer import SelfHealer
+from image_providers import ImageRouter
+from intent_classifier import Intent, classify, extract_prompt
+from realtime import build_system_prompt, detect_weather_city, get_weather
+from music_generator import MusicGenerator
+from translator import Translator
+from video_generator import VideoGenerator
+
 from transparency import CostCalculator, UsageTracker
 
 log = structlog.get_logger()
@@ -46,6 +53,10 @@ class AppState:
     cost_calculator: CostCalculator
     usage_tracker: UsageTracker
     ensemble: EnsembleOrchestrator
+    image_router: ImageRouter
+    video_generator: VideoGenerator
+    music_generator: MusicGenerator
+    translator: Translator
 
 
 state = AppState()
@@ -82,6 +93,10 @@ async def lifespan(app: FastAPI):
     state.router = Router(state.config, state.quota_manager)
     judge_model = state.config.providers.ensemble.judge.split("/")[-1]
     state.ensemble = EnsembleOrchestrator(state.router, judge_model=judge_model)
+    state.image_router = ImageRouter()
+    state.video_generator = VideoGenerator()
+    state.music_generator = MusicGenerator()
+    state.translator = Translator()
 
     configured_free = sum(
         1 for pid in state.config.free_providers
@@ -200,31 +215,34 @@ async def chat_completions(request: ChatCompletionRequest) -> JSONResponse:
         history = []
 
     new_messages = [m.model_dump() for m in request.messages]
-    SISTEMA_SINFONIA = """ISTRUZIONI OBBLIGATORIE:
-
-1. Rispondi SEMPRE in Markdown (titoli ##, grassetti **, elenchi -).
-
-2. Usa SEMPRE LaTeX per le formule matematiche. USA SOLO QUESTI DELIMITATORI:
-   - Formule inline: $formula$
-   - Formule in blocco: $$formula$$
-   NON usare parentesi quadre o tonde per il LaTeX.
-
-3. Quando il problema riguarda la GEOMETRIA (rombi, triangoli, cerchi, ecc.),
-   disegna la figura con SVG inline. Inserisci il codice SVG dentro un blocco
-   di codice con linguaggio svg, cosi:
-
-   ```svg
-   <svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
-     <polygon points="200,30 350,150 200,270 50,150" fill="none" stroke="#8b7bf0" stroke-width="2"/>
-     <line x1="200" y1="30" x2="200" y2="270" stroke="#8b7bf0" stroke-width="1" stroke-dasharray="4"/>
-     <line x1="50" y1="150" x2="350" y2="150" stroke="#8b7bf0" stroke-width="1" stroke-dasharray="4"/>
-     <text x="200" y="20" fill="#e8e8ea" text-anchor="middle" font-size="14">A</text>
-     <text x="360" y="155" fill="#e8e8ea" text-anchor="middle" font-size="14">B</text>
-     <text x="200" y="290" fill="#e8e8ea" text-anchor="middle" font-size="14">C</text>
-     <text x="40" y="155" fill="#e8e8ea" text-anchor="middle" font-size="14">D</text>
-     <text x="200" y="155" fill="#e8e8ea" text-anchor="middle" font-size="14">O</text>
-   </svg>"""
+    SISTEMA_SINFONIA = build_system_prompt()
     messages = history + [{"role": "system", "content": SISTEMA_SINFONIA}] + new_messages
+
+    # Contesto in tempo reale: meteo (solo se la domanda lo richiede)
+    _last_user = ""
+    for _m in reversed(new_messages):
+        if _m.get("role") == "user":
+            _last_user = _m.get("content", "")
+            break
+    _city = detect_weather_city(_last_user)
+    if _city:
+        try:
+            _weather = await get_weather(_city)
+            _wtext = (
+                f"DATI METEO IN TEMPO REALE per {_weather['city']} "
+                f"(fonte: wttr.in, rilevati adesso): "
+                f"temperatura {_weather['temp_C']} C, "
+                f"percepita {_weather['feels_like_C']} C, "
+                f"condizioni: {_weather['description']}, "
+                f"umidita {_weather['humidity']}%, "
+                f"vento {_weather['wind_kmph']} km/h {_weather['wind_dir']}, "
+                f"indice UV {_weather['uv_index']}. "
+                f"Riporta questi dati nella tua risposta."
+            )
+            messages.append({"role": "system", "content": _wtext})
+            log.info("realtime.weather_injected", city=_city)
+        except Exception as _e:
+            log.warning("realtime.weather_failed", city=_city, error=str(_e))
 
     # Salva i nuovi messaggi utente
     for msg in request.messages:
@@ -467,6 +485,90 @@ async def get_credits() -> dict[str, Any]:
             }
 
     return result
+
+
+
+
+# --- Endpoint multimodali ---------------------------------------------------
+
+class ImageRequest(BaseModel):
+    prompt: str
+    width: int = 1024
+    height: int = 1024
+    model: str = "flux"
+
+
+class VideoRequest(BaseModel):
+    prompt: str
+    model: str = "wan-fast"
+    duration: int = 5
+
+
+class MusicRequest(BaseModel):
+    prompt: str
+    title: str = ""
+
+
+class TranslationRequest(BaseModel):
+    text: str
+    target_lang: str = "en"
+    source_lang: str | None = None
+
+
+@app.post("/v1/images/generations")
+async def generate_image(request: ImageRequest) -> JSONResponse:
+    """Genera un'immagine con Pollinations.ai."""
+    result = await state.image_router.generate(
+        prompt=request.prompt,
+        width=request.width,
+        height=request.height,
+    )
+    return JSONResponse(content=result.to_dict())
+
+
+@app.post("/v1/videos")
+async def generate_video(request: VideoRequest) -> JSONResponse:
+    """Avvia la generazione di un video con InferencePort."""
+    result = await state.video_generator.generate(
+        prompt=request.prompt,
+        duration=request.duration,
+    )
+    return JSONResponse(content=result.to_dict())
+
+
+@app.get("/v1/videos/{job_id}")
+async def get_video_status(job_id: str) -> JSONResponse:
+    """Polling dello stato di un video."""
+    result = await state.video_generator.poll(job_id)
+    return JSONResponse(content=result.to_dict())
+
+
+@app.post("/v1/audio/generations")
+async def generate_music(request: MusicRequest) -> JSONResponse:
+    """Genera una canzone con Tunova."""
+    result = await state.music_generator.generate(
+        prompt=request.prompt,
+        title=request.title,
+    )
+    return JSONResponse(content=result.to_dict())
+
+
+@app.get("/v1/audio/generations/{job_id}")
+async def get_music_status(job_id: str) -> JSONResponse:
+    """Polling dello stato di una canzone."""
+    result = await state.music_generator.poll(job_id)
+    return JSONResponse(content=result.to_dict())
+
+
+@app.post("/v1/translations")
+async def translate(request: TranslationRequest) -> JSONResponse:
+    """Traduce un testo con Index-Translate."""
+    result = await state.translator.translate(
+        text=request.text,
+        target_lang=request.target_lang,
+        source_lang=request.source_lang,
+    )
+    return JSONResponse(content=result.to_dict())
 
 
 if __name__ == "__main__":

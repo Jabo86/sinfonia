@@ -3,56 +3,88 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sinfonia — Chat</title>
+  <title>Sinfonia — AI Orchestration</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎼</text></svg>">
   <link rel="stylesheet" href="/ui/vendor/katex.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
   <link rel="stylesheet" href="/ui/style.css">
   <script src="/ui/vendor/marked.min.js"></script>
   <script src="/ui/vendor/katex.min.js"></script>
   <script src="/ui/vendor/auto-render.min.js"></script>
   <script src="/ui/vendor/mermaid.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 </head>
 <body>
-  <aside class="sidebar">
-    <div class="logo">🎼 Sinfonia</div>
-    <button id="new-chat" class="new-chat">+ Nuova chat</button>
-    <div id="conversations" class="conversations"></div>
-    <div class="credits-bar">
-      <div class="credits-title">💰 Crediti</div>
-      <div id="credits-list" class="credits-list"></div>
+  <div id="sidebar-overlay" class="sidebar-overlay"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo"><span class="logo-icon">🎼</span><span class="logo-text">Sinfonia</span></div>
+      <button class="icon-btn" id="toggle-sidebar" title="Chiudi sidebar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
     </div>
-    <div class="footer">
-      <span id="status-dot" class="status-dot"></span>
-      <span id="status-text">verifica...</span>
+    <button class="new-chat-btn" id="new-chat">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span>Nuova chat</span>
+    </button>
+    <div class="search-wrap">
+      <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input type="text" id="search-conv" class="search-input" placeholder="Cerca conversazioni...">
+    </div>
+    <div class="conversations" id="conversations"></div>
+    <div class="credits-panel">
+      <button class="credits-header" id="toggle-credits">
+        <div class="credits-title"><span class="pulse-dot"></span><span>Provider attivi</span></div>
+        <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="credits-list" id="credits-list"></div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="status-pill" id="status-pill"><span class="status-dot"></span><span id="status-text">Connessione...</span></div>
     </div>
   </aside>
 
   <main class="main">
     <header class="topbar">
-      <select id="model-select" class="model-select">
-        <option value="sinfonia/auto">🎼 Sinfonia Auto</option>
-      </select>
-      <label class="ensemble-toggle">
-        <input type="checkbox" id="ensemble-mode">
-        <span>Ensemble</span>
-      </label>
-    </header>
-
-    <div id="messages" class="messages">
-      <div class="welcome">
-        <h1>🎼 Benvenuto in Sinfonia</h1>
-        <p>L'orchestrazione etica dell'intelligenza artificiale.</p>
-        <p class="hint">Scrivi un messaggio qui sotto per iniziare.</p>
+      <button class="icon-btn menu-btn" id="menu-btn" title="Menu">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="model-picker">
+        <button class="model-btn" id="model-btn">
+          <span class="model-avatar" id="model-avatar">🎼</span>
+          <span class="model-name" id="model-name">Sinfonia Auto</span>
+          <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="model-dropdown" id="model-dropdown"></div>
       </div>
-    </div>
-
-    <div id="provider-indicator" class="provider-indicator"></div>
-
-    <form id="composer" class="composer">
-      <textarea id="input" placeholder="Scrivi un messaggio..." rows="1"></textarea>
-      <button type="submit" id="send" class="send">➤</button>
+      <div class="topbar-right">
+        <button class="mode-toggle" id="ensemble-toggle" title="Modalità Ensemble">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+          <span>Ensemble</span>
+        </button>
+        <button class="icon-btn" id="theme-btn" title="Tema">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+        </button>
+      </div>
+    </header>
+    <div class="messages" id="messages"></div>
+    <div class="provider-indicator" id="provider-indicator"></div>
+    <form class="composer" id="composer">
+      <div class="composer-inner">
+        <textarea id="input" placeholder="Chiedi qualsiasi cosa..." rows="1"></textarea>
+        <div class="composer-actions">
+          <button type="button" class="icon-btn attach-btn" title="Allegati (presto)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          </button>
+          <button type="submit" class="send-btn" id="send" title="Invia">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="composer-hint"><kbd>Invio</kbd> per inviare · <kbd>Shift+Invio</kbd> per andare a capo · <kbd>⌘K</kbd> nuova chat</div>
     </form>
   </main>
-
+  <div id="toast-container" class="toast-container"></div>
   <script src="/ui/app.js"></script>
 </body>
 </html>

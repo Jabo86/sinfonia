@@ -213,6 +213,138 @@ providers:
     models:
     - meta/llama-3.3-70b-instruct
     - mistralai/mistral-large-2-instruct
+    - 01-ai/yi-large
+    - adept/fuyu-8b
+    - ai21labs/jamba-1.5-large-instruct
+    - aisingapore/sea-lion-7b-instruct
+    - bigcode/starcoder2-15b
+    - databricks/dbrx-instruct
+    - deepseek-ai/deepseek-coder-6.7b-instruct
+    - deepseek-ai/deepseek-v4.1-flash
+    - google/codegemma-1.1-7b
+    - google/codegemma-7b
+    - google/deplot
+    - google/diffusiongemma-26b-a4b-it
+    - google/gemma-2b
+    - google/gemma-3-12b-it
+    - google/gemma-3-4b-it
+    - google/gemma-4-31b-it
+    - google/recurrentgemma-2b
+    - ibm/granite-3.0-3b-a800m-instruct
+    - ibm/granite-3.0-8b-instruct
+    - ibm/granite-34b-code-instruct
+    - ibm/granite-8b-code-instruct
+    - meta/codellama-70b
+    - meta/llama-3.2-11b-vision-instruct
+    - meta/llama-3.2-90b-vision-instruct
+    - meta/llama-guard-4-12b
+    - meta/llama2-70b
+    - meta/muse-glimmer-30b
+    - microsoft/kosmos-2
+    - microsoft/phi-3-vision-128k-instruct
+    - microsoft/phi-3.5-moe-instruct
+    - mistralai/codestral-22b-instruct-v0.1
+    - mistralai/mistral-7b-instruct-v0.3
+    - mistralai/mistral-large
+    - mistralai/mixtral-8x22b-v0.1
+    - moonshotai/kimi-k2.6
+    - moonshotai/kimi-k3
+    - nv-mistralai/mistral-nemo-12b-instruct
+    - nvidia/ai-synthetic-video-detector
+    - nvidia/cosmos-reason2-8b
+    - nvidia/embed-qa-4
+    - nvidia/ising-calibration-1.5-31b
+    - nvidia/llama-3.1-nemoguard-8b-content-safety
+    - nvidia/llama-3.1-nemoguard-8b-topic-control
+    - nvidia/llama-3.1-nemotron-51b-instruct
+    - nvidia/llama-3.1-nemotron-70b-instruct
+    - nvidia/llama-3.1-nemotron-safety-guard-8b-v3
+    - nvidia/llama-3.1-nemotron-ultra-253b-v1
+    - nvidia/llama-3.2-nemoretriever-1b-vlm-embed-v1
+    - nvidia/llama-3.2-nv-embedqa-1b-v1
+    - nvidia/llama-nemotron-embed-vl-1b-v2
+    - nvidia/llama3-chatqa-1.5-70b
+    - nvidia/mistral-nemo-minitron-8b-8k-instruct
+    - nvidia/nemotron-3-embed-1b
+    - nvidia/nemotron-3-nano-omni-30b-a3b-reasoning
+    - nvidia/nemotron-3-super-120b-a12b
+    - nvidia/nemotron-3-ultra-550b-a55b
+    - nvidia/nemotron-3.5-content-safety
+    - nvidia/nemotron-3.5-lightning-30b-a3b
+    - nvidia/nemotron-4-340b-instruct
+    - nvidia/nemotron-4-340b-reward
+    - nvidia/nemotron-nano-3-30b-a3b
+    - nvidia/nemotron-parse
+    - nvidia/nemotron-parse-2.0
+    - nvidia/neva-22b
+    - nvidia/nv-embedqa-mistral-7b-v2
+    - nvidia/nvclip
+    - nvidia/riva-translate-4b-instruct
+    - nvidia/riva-translate-4b-instruct-v2
+    - nvidia/vila
+    - openai/gpt-oss-20b
+    - poolside/laguna-xs-2.1
+    - snowflake/arctic-embed-l
+    - writer/palmyra-creative-122b
+    - writer/palmyra-fin-70b-32k
+    - writer/palmyra-med-70b
+    - writer/palmyra-med-70b-32k
+    - z-ai/glm-5.3
+    - z-ai/glm-5.3-flash
+    - zyphra/zamba2-7b-instruct
+  deepseek:
+    name: DeepSeek
+    api_base: https://api.deepseek.com
+    api_key_env: DEEPSEEK_API_KEY
+    openai_compatible: true
+    free_tier:
+      available: false
+      notes: Nessun free tier. $5 credito ogni 30gg per utenti non paganti.
+    models:
+    - deepseek-flash
+    - deepseek-v4-pro
+  glm:
+    name: GLM (Zhipu)
+    api_base: https://open.bigmodel.cn/api/paas/v4
+    api_key_env: GLM_API_KEY
+    openai_compatible: true
+    free_tier:
+      available: true
+      credit_card_required: false
+      limits:
+        rpm: 30
+      notes: GLM-4.7-Flash e GLM-4.5-Flash sono completamente gratuiti.
+    models:
+    - glm-4.7-flash
+    - glm-4.5-flash
+    - glm-4.6
+  kimi:
+    name: Kimi (Moonshot)
+    api_base: https://api.moonshot.cn/v1
+    api_key_env: MOONSHOT_API_KEY
+    openai_compatible: true
+    free_tier:
+      available: true
+      credit_card_required: false
+      limits:
+        requests_per_month: 1000
+        context_window: 256000
+      notes: 1000 chiamate API/mese gratis. Contesto 256K.
+    models:
+    - kimi-k3
+    - kimi-k2.6
+    - kimi-k2.7-code
+  grok:
+    name: Grok (xAI)
+    api_base: https://api.x.ai/v1
+    api_key_env: XAI_API_KEY
+    openai_compatible: true
+    free_tier:
+      available: false
+      notes: '$5 credito ogni 30gg. Prezzi: $2/$6 per 1M token.'
+    models:
+    - grok-4.7
+    - grok-4.1-fast
 paid_providers:
   openai:
     name: OpenAI
@@ -271,3 +403,41 @@ local:
   models:
     judge: llama3.2:3b
     fallback: llama3.2:3b
+image_providers:
+  cloudflare_workers_ai:
+    name: Cloudflare Workers AI
+    api_base: https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/run
+    api_key_env: CLOUDFLARE_API_TOKEN
+    account_id_env: CLOUDFLARE_ACCOUNT_ID
+    model: '@cf/black-forest-labs/flux-1-schnell'
+    free_tier:
+      neurons_per_day: 10000
+      neurons_per_image_1024: 19.2
+      estimated_images_per_day: 500
+    format: base64_json
+    quality: 3
+  nvidia_nim:
+    name: NVIDIA NIM
+    api_base: https://integrate.api.nvidia.com/v1
+    api_key_env: NVIDIA_API_KEY
+    model: black-forest-labs/flux.1-schnell
+    free_tier:
+      rpm: 40
+    format: url_or_base64
+    quality: 4
+  huggingface:
+    name: Hugging Face Inference
+    api_base: https://router.huggingface.co/v1/images/generations
+    api_key_env: HF_TOKEN
+    model: black-forest-labs/FLUX.1-dev
+    free_tier:
+      requests_per_day: 1000
+    format: url_or_base64
+    quality: 4
+image_routing:
+  default_provider: nvidia_nim
+  fallback_chain:
+  - nvidia_nim
+  - huggingface
+  - cloudflare_workers_ai
+  quality_preference: high
