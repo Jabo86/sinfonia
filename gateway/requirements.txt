@@ -1,20 +1,20 @@
 # Sinfonia — Gateway Dependencies
 # Fase 1: Gateway Core
 
-# Web framework per l'API OpenAI-compatible
-fastapi==0.116.0
+# Web framework — 0.133.0+ supporta Starlette 1.x
+fastapi==0.133.0
 uvicorn[standard]==0.32.0
 
-# Client HTTP async
-httpx==0.27.2
+# Client HTTP async — versione compatibile con Python 3.14
+httpx==0.28.1
 
 # Configurazione YAML
 pyyaml==6.0.2
 
-# Variabili d'ambiente
-python-dotenv==1.0.1
+# Variabili d'ambiente — fix PYSEC-2026-2270
+python-dotenv==1.2.2
 
-# Validazione dati — versione con wheel per Python 3.14
+# Validazione dati
 pydantic==2.13.4
 
 # Persistenza quote (SQLite)
@@ -22,3 +22,9 @@ aiosqlite==0.20.0
 
 # Logging strutturato
 structlog==24.4.0
+
+# Starlette — fix di tutte le 7 CVE segnalate
+starlette==1.3.1
+
+
+
