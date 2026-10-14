@@ -1,0 +1,49 @@
+# Sinfonia — Budget Configuration
+# Definisce i limiti di spesa per i provider a pagamento.
+# Sinfonia NON superera mai questi limiti, anche se l'utente lo richiede.
+
+version: 1
+
+global:
+  monthly_budget_usd: 20.00
+  hard_limit: true
+  warning_threshold: 0.80
+  currency: "USD"
+
+per_provider:
+
+  openai:
+    monthly_budget_usd: 10.00
+    hard_limit: true
+    warn_at_percent: 80
+    models:
+      gpt-4o:
+        cost_per_1k_input_tokens: 0.0025
+        cost_per_1k_output_tokens: 0.010
+      gpt-4o-mini:
+        cost_per_1k_input_tokens: 0.00015
+        cost_per_1k_output_tokens: 0.0006
+
+  anthropic:
+    monthly_budget_usd: 10.00
+    hard_limit: true
+    warn_at_percent: 80
+    models:
+      claude-opus-4-6:
+        cost_per_1k_input_tokens: 0.015
+        cost_per_1k_output_tokens: 0.075
+      claude-sonnet-4-6:
+        cost_per_1k_input_tokens: 0.003
+        cost_per_1k_output_tokens: 0.015
+
+  google_gemini_paid:
+    monthly_budget_usd: 5.00
+    hard_limit: true
+    warn_at_percent: 80
+    models:
+      gemini-2.5-pro:
+        cost_per_1k_input_tokens: 0.00125
+        cost_per_1k_output_tokens: 0.005
+      gemini-2.5-flash:
+        cost_per_1k_input_tokens: 0.000075
+        cost_per_1k_output_tokens: 0.0003

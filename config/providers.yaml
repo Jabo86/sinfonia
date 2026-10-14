@@ -1,0 +1,221 @@
+# Sinfonia — Provider Configuration
+# Ultimo aggiornamento: 2026-10-14
+#
+# ATTENZIONE: i limiti dei piani gratuiti cambiano frequentemente.
+# Verifica sempre sui siti ufficiali prima di fare affidamento su questi dati.
+
+version: 1
+
+providers:
+
+  groq:
+    name: "Groq"
+    api_base: "https://api.groq.com/openai/v1"
+    api_key_env: "GROQ_API_KEY"
+    openai_compatible: true
+    free_tier:
+      available: true
+      credit_card_required: false
+      limits:
+        rpm: 30
+        rpd: 14400
+        tpm: 6000
+      notes: "Uno dei free tier piu generosi. Nessuna carta richiesta."
+    models:
+      - "llama-3.3-70b-versatile"
+      - "llama-3.1-8b-instant"
+      - "mixtral-8x7b-32768"
+
+  cerebras:
+    name: "Cerebras"
+    api_base: "https://api.cerebras.ai/v1"
+    api_key_env: "CEREBRAS_API_KEY"
+    openai_compatible: true
+    free_tier:
+      available: true
+      credit_card_required: false
+      limits:
+        rpm: 30
+        rpd: 14400
+        tokens_per_day: 1000000
+    models:
+      - "llama3.1-8b"
+      - "llama3.1-70b"
+
+  google_gemini:
+    name: "Google Gemini (AI Studio)"
+    api_base: "https://generativelanguage.googleapis.com/v1beta"
+    api_key_env: "GEMINI_API_KEY"
+    openai_compatible: true
+    free_tier:
+      available: true
+      credit_card_required: false
+      limits:
+        rpm: 15
+        rpd: 1500
+        rpm_flash: 60
+      notes: >
+        IMPORTANTE: Google vieta esplicitamente il pooling di chiavi da piu
+        progetti GCP per aggirare i limiti. Sinfonia usa UNA SOLA chiave
+        per utente. Punto.
+    models:
+      - "gemini-2.5-pro"
+      - "gemini-2.5-flash"
+
+  openrouter:
+    name: "OpenRouter"
+    api_base: "https://openrouter.ai/api/v1"
+    api_key_env: "OPENROUTER_API_KEY"
+    openai_compatible: true
+    free_tier:
+      available: true
+      credit_card_required: false
+      limits:
+        rpm: 20
+        rpd_before_credit: 50
+        rpd_after_10usd_credit: 1000
+      notes: >
+        OpenRouter e progettato per aggregare modelli. Il free tier ha limiti
+        chiari. Le quote sono globali per account.
+    models:
+      - "meta-llama/llama-3.3-70b-instruct:free"
+      - "google/gemini-2.0-flash-exp:free"
+      - "deepseek/deepseek-chat:free"
+
+  mistral:
+    name: "Mistral AI"
+    api_base: "https://api.mistral.ai/v1"
+    api_key_env: "MISTRAL_API_KEY"
+    openai_compatible: true
+    free_tier:
+      available: true
+      credit_card_required: false
+      limits:
+        rpm: 60
+      notes: "Tier Experiment gratuito, senza limite giornaliero dichiarato."
+    models:
+      - "mistral-small-latest"
+      - "mistral-large-latest"
+
+  github_models:
+    name: "GitHub Models"
+    api_base: "https://models.inference.ai.azure.com"
+    api_key_env: "GITHUB_TOKEN"
+    openai_compatible: true
+    free_tier:
+      available: true
+      credit_card_required: false
+      limits:
+        rpm: 15
+        rpd: 150
+    models:
+      - "gpt-4o-mini"
+      - "Phi-3.5-MoE-instruct"
+
+  sambanova:
+    name: "SambaNova"
+    api_base: "https://api.sambanova.ai/v1"
+    api_key_env: "SAMBANOVA_API_KEY"
+    openai_compatible: true
+    free_tier:
+      available: true
+      credit_card_required: false
+      limits:
+        rpm: 20
+        rpd: 1000
+    models:
+      - "Meta-Llama-3.3-70B-Instruct"
+
+  cloudflare_workers_ai:
+    name: "Cloudflare Workers AI"
+    api_base: "https://api.cloudflare.com/client/v4/accounts/ACCOUNT_ID/ai/v1"
+    api_key_env: "CLOUDFLARE_API_TOKEN"
+    openai_compatible: true
+    free_tier:
+      available: true
+      credit_card_required: false
+      limits:
+        neurons_per_day: 10000
+      notes: "10.000 Neuroni al giorno gratuiti. Adatto per app serverless."
+    models:
+      - "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+
+  nvidia_nim:
+    name: "NVIDIA NIM"
+    api_base: "https://integrate.api.nvidia.com/v1"
+    api_key_env: "NVIDIA_API_KEY"
+    openai_compatible: true
+    free_tier:
+      available: true
+      credit_card_required: false
+      limits:
+        rpm: 40
+      notes: "Crediti gratuiti per molti modelli. Verifica i limiti attuali."
+    models:
+      - "meta/llama-3.3-70b-instruct"
+      - "mistralai/mistral-large-2-instruct"
+
+paid_providers:
+
+  openai:
+    name: "OpenAI"
+    api_base: "https://api.openai.com/v1"
+    api_key_env: "OPENAI_API_KEY"
+    openai_compatible: true
+    billing:
+      model: "pay-per-token"
+      budget_recommended_monthly_usd: 10
+    models:
+      - "gpt-4o"
+      - "gpt-4o-mini"
+      - "o1-preview"
+
+  anthropic:
+    name: "Anthropic"
+    api_base: "https://api.anthropic.com/v1"
+    api_key_env: "ANTHROPIC_API_KEY"
+    openai_compatible: false
+    adapter: "litellm"
+    billing:
+      model: "pay-per-token"
+      budget_recommended_monthly_usd: 10
+    models:
+      - "claude-opus-4-6"
+      - "claude-sonnet-4-6"
+      - "claude-haiku-4-5"
+
+  google_gemini_paid:
+    name: "Google Gemini (Vertex AI)"
+    api_base: "https://us-central1-aiplatform.googleapis.com/v1"
+    api_key_env: "GOOGLE_APPLICATION_CREDENTIALS"
+    openai_compatible: false
+    adapter: "litellm"
+    billing:
+      model: "pay-per-token"
+    models:
+      - "gemini-2.5-pro"
+      - "gemini-2.5-flash"
+
+routing:
+  default_mode: "single"
+  strategy: "quota_aware"
+  fallback_on_429: true
+  paid_routing:
+    mode: "free_first"
+    confirm_before_paid: true
+    show_cost_estimate: true
+
+ensemble:
+  enabled: false
+  panel_size: 3
+  judge: "ollama/qwen3"
+  min_provider_families: 2
+  warn_before_execution: true
+
+local:
+  enabled: true
+  provider: "ollama"
+  api_base: "http://localhost:11434"
+  models:
+    judge: "qwen3:8b"
+    fallback: "llama4:8b"
