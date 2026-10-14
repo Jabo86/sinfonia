@@ -29,6 +29,7 @@ from conversation_state import ConversationStore
 from model_updater import scheduler_loop
 from quota_manager import QuotaManager
 from router import NoProviderAvailable, Router
+from ensemble import EnsembleOrchestrator
 from self_healer import SelfHealer
 from transparency import CostCalculator, UsageTracker
 
@@ -43,6 +44,7 @@ class AppState:
     self_healer: SelfHealer
     cost_calculator: CostCalculator
     usage_tracker: UsageTracker
+    ensemble: EnsembleOrchestrator
 
 
 state = AppState()
@@ -77,6 +79,8 @@ async def lifespan(app: FastAPI):
     state.cost_calculator = CostCalculator(state.config)
     state.usage_tracker = UsageTracker(db_path)
     state.router = Router(state.config, state.quota_manager)
+    judge_model = state.config.providers.ensemble.judge.split("/")[-1]
+    state.ensemble = EnsembleOrchestrator(state.router, judge_model=judge_model)
 
     configured_free = sum(
         1 for pid in state.config.free_providers
@@ -342,6 +346,40 @@ async def estimate_cost(request: ChatCompletionRequest) -> dict[str, Any]:
         "paid_estimates": estimates,
         "note": "Usa free_options per costo zero. Le stime paid sono approssimative.",
     }
+
+
+
+
+class EnsembleRequest(BaseModel):
+    messages: list[ChatMessage]
+    panel_size: int | None = None
+    judge_model: str | None = None
+    temperature: float | None = 0.7
+
+
+@app.post("/v1/ensemble")
+async def ensemble_chat(request: EnsembleRequest) -> JSONResponse:
+    """Modalita Ensemble: N provider rispondono in parallelo, un giudice locale sintetizza."""
+    messages = [m.model_dump() for m in request.messages]
+    panel_size = request.panel_size or state.config.providers.ensemble.panel_size
+
+    decisions = await state.router.select_with_fallback(task_type="chat", max_attempts=panel_size)
+    if not decisions:
+        raise HTTPException(status_code=503, detail="Nessun provider disponibile per il panel.")
+
+    log.info("sinfonia.ensemble_start", panel=[d.provider_id for d in decisions], judge=request.judge_model or state.config.providers.ensemble.judge)
+
+    call_kwargs = {}
+    if request.temperature is not None:
+        call_kwargs["temperature"] = request.temperature
+
+    result = await state.ensemble.run(
+        decisions=decisions,
+        messages=messages,
+        judge_override=request.judge_model,
+        **call_kwargs,
+    )
+    return JSONResponse(content=result.to_dict())
 
 
 if __name__ == "__main__":

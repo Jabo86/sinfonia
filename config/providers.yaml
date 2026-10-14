@@ -259,9 +259,9 @@ routing:
     confirm_before_paid: true
     show_cost_estimate: true
 ensemble:
-  enabled: false
+  enabled: true
   panel_size: 3
-  judge: ollama/qwen3
+  judge: llama3.2:3b
   min_provider_families: 2
   warn_before_execution: true
 local:
@@ -269,5 +269,5 @@ local:
   provider: ollama
   api_base: http://localhost:11434
   models:
-    judge: qwen3:8b
-    fallback: llama4:8b
+    judge: llama3.2:3b
+    fallback: llama3.2:3b
