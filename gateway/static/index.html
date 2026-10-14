@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sinfonia — Chat</title>
+  <link rel="stylesheet" href="/ui/vendor/katex.min.css">
+  <link rel="stylesheet" href="/ui/style.css">
+  <script src="/ui/vendor/marked.min.js"></script>
+  <script src="/ui/vendor/katex.min.js"></script>
+  <script src="/ui/vendor/auto-render.min.js"></script>
+  <script src="/ui/vendor/mermaid.min.js"></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="logo">🎼 Sinfonia</div>
+    <button id="new-chat" class="new-chat">+ Nuova chat</button>
+    <div id="conversations" class="conversations"></div>
+    <div class="credits-bar">
+      <div class="credits-title">💰 Crediti</div>
+      <div id="credits-list" class="credits-list"></div>
+    </div>
+    <div class="footer">
+      <span id="status-dot" class="status-dot"></span>
+      <span id="status-text">verifica...</span>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <select id="model-select" class="model-select">
+        <option value="sinfonia/auto">🎼 Sinfonia Auto</option>
+      </select>
+      <label class="ensemble-toggle">
+        <input type="checkbox" id="ensemble-mode">
+        <span>Ensemble</span>
+      </label>
+    </header>
+
+    <div id="messages" class="messages">
+      <div class="welcome">
+        <h1>🎼 Benvenuto in Sinfonia</h1>
+        <p>L'orchestrazione etica dell'intelligenza artificiale.</p>
+        <p class="hint">Scrivi un messaggio qui sotto per iniziare.</p>
+      </div>
+    </div>
+
+    <div id="provider-indicator" class="provider-indicator"></div>
+
+    <form id="composer" class="composer">
+      <textarea id="input" placeholder="Scrivi un messaggio..." rows="1"></textarea>
+      <button type="submit" id="send" class="send">➤</button>
+    </form>
+  </main>
+
+  <script src="/ui/app.js"></script>
+</body>
+</html>

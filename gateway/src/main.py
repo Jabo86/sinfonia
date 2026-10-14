@@ -19,6 +19,7 @@ import structlog
 import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -120,6 +121,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Mount UI statica
+_static_dir = Path(__file__).resolve().parent.parent / "static"
+if _static_dir.exists():
+    app.mount("/ui", StaticFiles(directory=str(_static_dir), html=True), name="ui")
+
+
 
 class ChatMessage(BaseModel):
     role: str
@@ -193,7 +200,31 @@ async def chat_completions(request: ChatCompletionRequest) -> JSONResponse:
         history = []
 
     new_messages = [m.model_dump() for m in request.messages]
-    messages = history + new_messages
+    SISTEMA_SINFONIA = """ISTRUZIONI OBBLIGATORIE:
+
+1. Rispondi SEMPRE in Markdown (titoli ##, grassetti **, elenchi -).
+
+2. Usa SEMPRE LaTeX per le formule matematiche. USA SOLO QUESTI DELIMITATORI:
+   - Formule inline: $formula$
+   - Formule in blocco: $$formula$$
+   NON usare parentesi quadre o tonde per il LaTeX.
+
+3. Quando il problema riguarda la GEOMETRIA (rombi, triangoli, cerchi, ecc.),
+   disegna la figura con SVG inline. Inserisci il codice SVG dentro un blocco
+   di codice con linguaggio svg, cosi:
+
+   ```svg
+   <svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+     <polygon points="200,30 350,150 200,270 50,150" fill="none" stroke="#8b7bf0" stroke-width="2"/>
+     <line x1="200" y1="30" x2="200" y2="270" stroke="#8b7bf0" stroke-width="1" stroke-dasharray="4"/>
+     <line x1="50" y1="150" x2="350" y2="150" stroke="#8b7bf0" stroke-width="1" stroke-dasharray="4"/>
+     <text x="200" y="20" fill="#e8e8ea" text-anchor="middle" font-size="14">A</text>
+     <text x="360" y="155" fill="#e8e8ea" text-anchor="middle" font-size="14">B</text>
+     <text x="200" y="290" fill="#e8e8ea" text-anchor="middle" font-size="14">C</text>
+     <text x="40" y="155" fill="#e8e8ea" text-anchor="middle" font-size="14">D</text>
+     <text x="200" y="155" fill="#e8e8ea" text-anchor="middle" font-size="14">O</text>
+   </svg>"""
+    messages = history + [{"role": "system", "content": SISTEMA_SINFONIA}] + new_messages
 
     # Salva i nuovi messaggi utente
     for msg in request.messages:
@@ -380,6 +411,62 @@ async def ensemble_chat(request: EnsembleRequest) -> JSONResponse:
         **call_kwargs,
     )
     return JSONResponse(content=result.to_dict())
+
+
+
+
+@app.get("/v1/credits")
+async def get_credits() -> dict[str, Any]:
+    """Crediti residui per provider (quota free + budget paid)."""
+    result = {}
+
+    for pid, provider in state.config.free_providers.items():
+        limits = provider.free_tier.limits if provider.free_tier else {}
+        status = await state.quota_manager.get_status(
+            pid,
+            rpm_limit=limits.get("rpm"),
+            rpd_limit=limits.get("rpd"),
+            tpd_limit=limits.get("tokens_per_day"),
+        )
+
+        rpm_pct = 100.0
+        if status.rpm_limit and status.rpm_limit > 0:
+            rpm_pct = max(0.0, 100.0 * (status.rpm_limit - status.requests_this_minute) / status.rpm_limit)
+
+        rpd_pct = 100.0
+        if status.rpd_limit and status.rpd_limit > 0:
+            rpd_pct = max(0.0, 100.0 * (status.rpd_limit - status.requests_today) / status.rpd_limit)
+
+        result[pid] = {
+            "name": provider.name,
+            "type": "free",
+            "available": status.is_available,
+            "in_cooldown": status.is_in_cooldown,
+            "cooldown_seconds": status.cooldown_remaining,
+            "rpm_used": status.requests_this_minute,
+            "rpm_limit": status.rpm_limit,
+            "rpm_percent": round(rpm_pct, 1),
+            "rpd_used": status.requests_today,
+            "rpd_limit": status.rpd_limit,
+            "rpd_percent": round(rpd_pct, 1),
+            "tokens_today": status.tokens_today,
+            "tpd_limit": status.tpd_limit,
+        }
+
+    for pid, provider in state.config.paid_providers.items():
+        bp = state.config.budget.per_provider.get(pid)
+        if bp:
+            result[pid] = {
+                "name": provider.name,
+                "type": "paid",
+                "available": True,
+                "budget_month_usd": bp.monthly_budget_usd,
+                "budget_used_usd": 0.0,
+                "budget_remaining_usd": bp.monthly_budget_usd,
+                "budget_percent": 100.0,
+            }
+
+    return result
 
 
 if __name__ == "__main__":
