@@ -30,6 +30,7 @@ from model_updater import scheduler_loop
 from quota_manager import QuotaManager
 from router import NoProviderAvailable, Router
 from self_healer import SelfHealer
+from transparency import CostCalculator, UsageTracker
 
 log = structlog.get_logger()
 
@@ -40,6 +41,8 @@ class AppState:
     router: Router
     conversation_store: ConversationStore
     self_healer: SelfHealer
+    cost_calculator: CostCalculator
+    usage_tracker: UsageTracker
 
 
 state = AppState()
@@ -71,6 +74,8 @@ async def lifespan(app: FastAPI):
     state.quota_manager = QuotaManager(db_path)
     state.conversation_store = ConversationStore(db_path)
     state.self_healer = SelfHealer()
+    state.cost_calculator = CostCalculator(state.config)
+    state.usage_tracker = UsageTracker(db_path)
     state.router = Router(state.config, state.quota_manager)
 
     configured_free = sum(
@@ -247,6 +252,96 @@ async def chat_completions(request: ChatCompletionRequest) -> JSONResponse:
             continue
 
     raise HTTPException(status_code=502, detail=f"Tutti i provider hanno fallito. Ultimo errore: {last_error}")
+
+
+
+
+@app.get("/v1/quota")
+async def get_quota() -> dict[str, Any]:
+    """Quote residue di tutti i provider free."""
+    result = {}
+    for pid, provider in state.config.free_providers.items():
+        limits = provider.free_tier.limits if provider.free_tier else {}
+        status = await state.quota_manager.get_status(
+            pid,
+            rpm_limit=limits.get("rpm"),
+            rpd_limit=limits.get("rpd"),
+            tpd_limit=limits.get("tokens_per_day"),
+        )
+        result[pid] = {
+            "name": provider.name,
+            "requests_this_minute": status.requests_this_minute,
+            "requests_today": status.requests_today,
+            "tokens_today": status.tokens_today,
+            "rpm_limit": status.rpm_limit,
+            "rpd_limit": status.rpd_limit,
+            "tpd_limit": status.tpd_limit,
+            "available": status.is_available,
+            "in_cooldown": status.is_in_cooldown,
+            "cooldown_remaining_seconds": status.cooldown_remaining,
+        }
+    return result
+
+
+@app.get("/v1/usage")
+async def get_usage() -> dict[str, Any]:
+    """Statistiche d'uso per provider."""
+    result = {}
+    for pid, provider in state.config.free_providers.items():
+        s = await state.usage_tracker.get_usage(pid)
+        result[pid] = {
+            "name": provider.name,
+            "requests_today": s.requests_today,
+            "tokens_today": s.tokens_today,
+            "tokens_this_month": s.tokens_this_month,
+        }
+    for pid, provider in state.config.paid_providers.items():
+        s = await state.usage_tracker.get_usage(pid)
+        result[pid] = {
+            "name": provider.name,
+            "requests_today": s.requests_today,
+            "tokens_today": s.tokens_today,
+            "tokens_this_month": s.tokens_this_month,
+            "budget_month_usd": s.budget_month_usd,
+            "budget_remaining_usd": s.budget_remaining_usd,
+        }
+    return result
+
+
+@app.post("/v1/estimate")
+async def estimate_cost(request: ChatCompletionRequest) -> dict[str, Any]:
+    """Stima il costo di una richiesta PRIMA di eseguirla."""
+    total_text = " ".join(m.content for m in request.messages)
+    expected_output = request.max_tokens or 500
+
+    estimates = {}
+    for pid, provider in state.config.paid_providers.items():
+        if not state.config.get_api_key(pid):
+            continue
+        for model in provider.models:
+            est = state.cost_calculator.estimate_from_text(
+                pid, model, total_text, expected_output
+            )
+            estimates[f"{pid}/{model}"] = {
+                "input_tokens_estimated": est.input_tokens,
+                "output_tokens_estimated": est.output_tokens,
+                "estimated_usd": est.estimated_usd,
+            }
+
+    free_info = {}
+    for pid, provider in state.config.free_providers.items():
+        if state.config.get_api_key(pid):
+            free_info[pid] = {
+                "name": provider.name,
+                "cost": 0.0,
+                "models": provider.models[:3],
+            }
+
+    return {
+        "free_options": free_info,
+        "paid_estimates": estimates,
+        "note": "Usa free_options per costo zero. Le stime paid sono approssimative.",
+    }
 
 
 if __name__ == "__main__":
