@@ -8,6 +8,8 @@ Supporta continuita conversazione, auto-guarigione e auto-scoperta modelli.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import asyncio
 import os
 import sys
@@ -35,7 +37,7 @@ from voice_api import router as voice_router
 from self_healer import SelfHealer
 from image_providers import ImageRouter
 from intent_classifier import Intent, classify, extract_prompt
-from realtime import build_system_prompt, build_voice_prompt, detect_weather_city, get_weather
+from realtime import build_system_prompt, build_voice_prompt, detect_weather_city, get_weather, GIORNI, MESI
 from profession_manager import get_profession_manager
 from music_generator import MusicGenerator
 from translator import Translator
@@ -262,7 +264,18 @@ async def chat_completions(request: ChatCompletionRequest) -> JSONResponse:
         SISTEMA_SINFONIA = build_voice_prompt()
     else:
         SISTEMA_SINFONIA = build_system_prompt()
-    messages = history + [{"role": "system", "content": SISTEMA_SINFONIA}] + new_messages
+    # Costruisci con system prompt + rinforzo data inline (i modelli piccoli tendono a ignorare il solo system)
+    _now = datetime.now()
+    _data_str = f"{GIORNI[_now.weekday()]} {_now.day} {MESI[_now.month - 1]} {_now.year}"
+    _ora_str = _now.strftime("%H:%M")
+    _date_reinforcement = {
+        "role": "system",
+        "content": f"RICORDA: Oggi e' {_data_str}, ore {_ora_str}. Se ti viene chiesta la data, rispondi esattamente: 'Oggi e' {_data_str}.'"
+    }
+    messages = history + [
+        {"role": "system", "content": SISTEMA_SINFONIA},
+        _date_reinforcement,
+    ] + new_messages
 
     # Contesto in tempo reale: meteo (solo se la domanda lo richiede)
     _last_user = ""
