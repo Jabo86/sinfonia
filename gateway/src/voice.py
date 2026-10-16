@@ -1,4 +1,4 @@
-"""Bro — Voice Module: STT faster-whisper + TTS Piper."""
+"""Sinfonia — Voice Module: STT faster-whisper + TTS Piper."""
 from __future__ import annotations
 import io, os, wave
 from dataclasses import dataclass

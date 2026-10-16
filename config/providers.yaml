@@ -12,7 +12,6 @@ providers:
       notes: Gira in locale sul Mac. Zero costi, zero chiavi, funziona offline.
     models:
     - qwen3:8b
-    - llama3.2:3b
   groq:
     name: Groq
     api_base: https://api.groq.com/openai/v1
