@@ -31,10 +31,11 @@ from model_updater import scheduler_loop
 from quota_manager import QuotaManager
 from router import NoProviderAvailable, Router
 from ensemble import EnsembleOrchestrator
+from voice_api import router as voice_router
 from self_healer import SelfHealer
 from image_providers import ImageRouter
 from intent_classifier import Intent, classify, extract_prompt
-from realtime import build_system_prompt, detect_weather_city, get_weather
+from realtime import build_system_prompt, build_voice_prompt, detect_weather_city, get_weather
 from music_generator import MusicGenerator
 from translator import Translator
 from video_generator import VideoGenerator
@@ -136,6 +137,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Voice API
+app.include_router(voice_router)
+
+
 # Mount UI statica
 _static_dir = Path(__file__).resolve().parent.parent / "static"
 if _static_dir.exists():
@@ -155,6 +160,7 @@ class ChatCompletionRequest(BaseModel):
     max_tokens: int | None = None
     stream: bool = False
     conversation_id: str | None = None
+    voice_mode: bool = False
     model_config = {"extra": "allow"}
 
 
@@ -215,7 +221,10 @@ async def chat_completions(request: ChatCompletionRequest) -> JSONResponse:
         history = []
 
     new_messages = [m.model_dump() for m in request.messages]
-    SISTEMA_SINFONIA = build_system_prompt()
+    if request.voice_mode:
+        SISTEMA_SINFONIA = build_voice_prompt()
+    else:
+        SISTEMA_SINFONIA = build_system_prompt()
     messages = history + [{"role": "system", "content": SISTEMA_SINFONIA}] + new_messages
 
     # Contesto in tempo reale: meteo (solo se la domanda lo richiede)

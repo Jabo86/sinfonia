@@ -1,5 +1,18 @@
 version: 1
 providers:
+  ollama:
+    name: Ollama (locale)
+    api_base: http://localhost:11434/v1
+    api_key_env: OLLAMA_API_KEY
+    openai_compatible: true
+    free_tier:
+      available: true
+      credit_card_required: false
+      limits: {}
+      notes: Gira in locale sul Mac. Zero costi, zero chiavi, funziona offline.
+    models:
+    - qwen3:8b
+    - llama3.2:3b
   groq:
     name: Groq
     api_base: https://api.groq.com/openai/v1
@@ -11,35 +24,18 @@ providers:
       limits:
         rpm: 30
         rpd: 14400
-        tpm: 6000
-      notes: Uno dei free tier piu generosi. Nessuna carta richiesta.
     models:
     - openai/gpt-oss-120b
     - qwen/qwen3.8-27b
-    - openai/gpt-oss-20b
     - allam-2-7b
     - canopylabs/orpheus-arabic-saudi
     - canopylabs/orpheus-v1-english
     - meta-llama/llama-prompt-guard-2-22m
     - meta-llama/llama-prompt-guard-2-86m
+    - openai/gpt-oss-20b
     - openai/gpt-oss-safeguard-20b
     - whisper-large-v3
     - whisper-large-v3-turbo
-  cerebras:
-    name: Cerebras
-    api_base: https://api.cerebras.ai/v1
-    api_key_env: CEREBRAS_API_KEY
-    openai_compatible: true
-    free_tier:
-      available: true
-      credit_card_required: false
-      limits:
-        rpm: 30
-        rpd: 14400
-        tokens_per_day: 1000000
-    models:
-    - llama3.1-8b
-    - llama3.1-70b
   google_gemini:
     name: Google Gemini (AI Studio)
     api_base: https://generativelanguage.googleapis.com/v1beta/openai
@@ -51,17 +47,9 @@ providers:
       limits:
         rpm: 15
         rpd: 1500
-        rpm_flash: 60
-      notes: 'IMPORTANTE: Google vieta esplicitamente il pooling di chiavi da piu
-        progetti GCP per aggirare i limiti. Sinfonia usa UNA SOLA chiave per utente.
-        Punto.
-
-        '
     models:
+    - gemini-2.5-flash
     - gemini-3.5-flash-lite
-    - gemini-3-flash-preview
-    - gemini-3.1-flash-lite
-    - gemini-flash-lite-latest
     - models/antigravity-preview-05-2026
     - models/antigravity-preview-09-2026
     - models/antigravity-preview-latest
@@ -125,80 +113,19 @@ providers:
     - models/veo-3.1-fast-generate-preview
     - models/veo-3.1-generate-preview
     - models/veo-3.1-lite-generate-preview
-  openrouter:
-    name: OpenRouter
-    api_base: https://openrouter.ai/api/v1
-    api_key_env: OPENROUTER_API_KEY
+  cerebras:
+    name: Cerebras
+    api_base: https://api.cerebras.ai/v1
+    api_key_env: CEREBRAS_API_KEY
     openai_compatible: true
     free_tier:
       available: true
-      credit_card_required: false
       limits:
-        rpm: 20
-        rpd_before_credit: 50
-        rpd_after_10usd_credit: 1000
-      notes: 'OpenRouter e progettato per aggregare modelli. Il free tier ha limiti
-        chiari. Le quote sono globali per account.
-
-        '
+        rpm: 30
+        rpd: 14400
     models:
-    - meta-llama/llama-3.3-70b-instruct:free
-    - google/gemini-2.0-flash-exp:free
-    - deepseek/deepseek-chat:free
-  mistral:
-    name: Mistral AI
-    api_base: https://api.mistral.ai/v1
-    api_key_env: MISTRAL_API_KEY
-    openai_compatible: true
-    free_tier:
-      available: true
-      credit_card_required: false
-      limits:
-        rpm: 60
-      notes: Tier Experiment gratuito, senza limite giornaliero dichiarato.
-    models:
-    - mistral-small-latest
-    - mistral-large-latest
-  github_models:
-    name: GitHub Models
-    api_base: https://models.inference.ai.azure.com
-    api_key_env: GITHUB_TOKEN
-    openai_compatible: true
-    free_tier:
-      available: true
-      credit_card_required: false
-      limits:
-        rpm: 15
-        rpd: 150
-    models:
-    - gpt-4o-mini
-    - Phi-3.5-MoE-instruct
-  sambanova:
-    name: SambaNova
-    api_base: https://api.sambanova.ai/v1
-    api_key_env: SAMBANOVA_API_KEY
-    openai_compatible: true
-    free_tier:
-      available: true
-      credit_card_required: false
-      limits:
-        rpm: 20
-        rpd: 1000
-    models:
-    - Meta-Llama-3.3-70B-Instruct
-  cloudflare_workers_ai:
-    name: Cloudflare Workers AI
-    api_base: https://api.cloudflare.com/client/v4/accounts/ACCOUNT_ID/ai/v1
-    api_key_env: CLOUDFLARE_API_TOKEN
-    openai_compatible: true
-    free_tier:
-      available: true
-      credit_card_required: false
-      limits:
-        neurons_per_day: 10000
-      notes: 10.000 Neuroni al giorno gratuiti. Adatto per app serverless.
-    models:
-    - '@cf/meta/llama-3.3-70b-instruct-fp8-fast'
+    - llama3.1-8b
+    - llama3.1-70b
   nvidia_nim:
     name: NVIDIA NIM
     api_base: https://integrate.api.nvidia.com/v1
@@ -206,13 +133,10 @@ providers:
     openai_compatible: true
     free_tier:
       available: true
-      credit_card_required: false
       limits:
         rpm: 40
-      notes: Crediti gratuiti per molti modelli. Verifica i limiti attuali.
     models:
     - meta/llama-3.3-70b-instruct
-    - mistralai/mistral-large-2-instruct
     - 01-ai/yi-large
     - adept/fuyu-8b
     - ai21labs/jamba-1.5-large-instruct
@@ -246,9 +170,9 @@ providers:
     - mistralai/codestral-22b-instruct-v0.1
     - mistralai/mistral-7b-instruct-v0.3
     - mistralai/mistral-large
+    - mistralai/mistral-large-2-instruct
     - mistralai/mixtral-8x22b-v0.1
     - moonshotai/kimi-k2.6
-    - moonshotai/kimi-k3
     - nv-mistralai/mistral-nemo-12b-instruct
     - nvidia/ai-synthetic-video-detector
     - nvidia/cosmos-reason2-8b
@@ -271,6 +195,7 @@ providers:
     - nvidia/nemotron-3-ultra-550b-a55b
     - nvidia/nemotron-3.5-content-safety
     - nvidia/nemotron-3.5-lightning-30b-a3b
+    - nvidia/nemotron-3.5-super-vl-120b-a12b
     - nvidia/nemotron-4-340b-instruct
     - nvidia/nemotron-4-340b-reward
     - nvidia/nemotron-nano-3-30b-a3b
@@ -285,6 +210,7 @@ providers:
     - openai/gpt-oss-20b
     - poolside/laguna-xs-2.1
     - snowflake/arctic-embed-l
+    - stepfun-ai/step-5-preview
     - writer/palmyra-creative-122b
     - writer/palmyra-fin-70b-32k
     - writer/palmyra-med-70b
@@ -292,17 +218,65 @@ providers:
     - z-ai/glm-5.3
     - z-ai/glm-5.3-flash
     - zyphra/zamba2-7b-instruct
-  deepseek:
-    name: DeepSeek
-    api_base: https://api.deepseek.com
-    api_key_env: DEEPSEEK_API_KEY
+  openrouter:
+    name: OpenRouter
+    api_base: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
     openai_compatible: true
     free_tier:
-      available: false
-      notes: Nessun free tier. $5 credito ogni 30gg per utenti non paganti.
+      available: true
+      limits:
+        rpm: 20
+        rpd_before_credit: 50
     models:
-    - deepseek-flash
-    - deepseek-v4-pro
+    - meta-llama/llama-3.3-70b-instruct:free
+    - deepseek/deepseek-chat:free
+  mistral:
+    name: Mistral AI
+    api_base: https://api.mistral.ai/v1
+    api_key_env: MISTRAL_API_KEY
+    openai_compatible: true
+    free_tier:
+      available: true
+      limits:
+        rpm: 60
+    models:
+    - mistral-small-latest
+  github_models:
+    name: GitHub Models
+    api_base: https://models.inference.ai.azure.com
+    api_key_env: GITHUB_TOKEN
+    openai_compatible: true
+    free_tier:
+      available: true
+      limits:
+        rpm: 15
+        rpd: 150
+    models:
+    - gpt-4o-mini
+  sambanova:
+    name: SambaNova
+    api_base: https://api.sambanova.ai/v1
+    api_key_env: SAMBANOVA_API_KEY
+    openai_compatible: true
+    free_tier:
+      available: true
+      limits:
+        rpm: 20
+        rpd: 1000
+    models:
+    - Meta-Llama-3.3-70B-Instruct
+  cloudflare_workers_ai:
+    name: Cloudflare Workers AI
+    api_base: https://api.cloudflare.com/client/v4/accounts/ACCOUNT_ID/ai/v1
+    api_key_env: CLOUDFLARE_API_TOKEN
+    openai_compatible: true
+    free_tier:
+      available: true
+      limits:
+        neurons_per_day: 10000
+    models:
+    - '@cf/meta/llama-3.3-70b-instruct-fp8-fast'
   glm:
     name: GLM (Zhipu)
     api_base: https://open.bigmodel.cn/api/paas/v4
@@ -313,11 +287,9 @@ providers:
       credit_card_required: false
       limits:
         rpm: 30
-      notes: GLM-4.7-Flash e GLM-4.5-Flash sono completamente gratuiti.
     models:
     - glm-4.7-flash
     - glm-4.5-flash
-    - glm-4.6
   kimi:
     name: Kimi (Moonshot)
     api_base: https://api.moonshot.cn/v1
@@ -325,27 +297,32 @@ providers:
     openai_compatible: true
     free_tier:
       available: true
-      credit_card_required: false
       limits:
         requests_per_month: 1000
-        context_window: 256000
-      notes: 1000 chiamate API/mese gratis. Contesto 256K.
     models:
     - kimi-k3
     - kimi-k2.6
-    - kimi-k2.7-code
+paid_providers:
+  deepseek:
+    name: DeepSeek
+    api_base: https://api.deepseek.com
+    api_key_env: DEEPSEEK_API_KEY
+    openai_compatible: true
+    billing:
+      model: pay-per-token
+    models:
+    - deepseek-flash
+    - deepseek-v4-pro
   grok:
     name: Grok (xAI)
     api_base: https://api.x.ai/v1
     api_key_env: XAI_API_KEY
     openai_compatible: true
-    free_tier:
-      available: false
-      notes: '$5 credito ogni 30gg. Prezzi: $2/$6 per 1M token.'
+    billing:
+      model: pay-per-token
     models:
     - grok-4.7
     - grok-4.1-fast
-paid_providers:
   openai:
     name: OpenAI
     api_base: https://api.openai.com/v1
@@ -353,11 +330,9 @@ paid_providers:
     openai_compatible: true
     billing:
       model: pay-per-token
-      budget_recommended_monthly_usd: 10
     models:
     - gpt-4o
     - gpt-4o-mini
-    - o1-preview
   anthropic:
     name: Anthropic
     api_base: https://api.anthropic.com/v1
@@ -366,22 +341,9 @@ paid_providers:
     adapter: litellm
     billing:
       model: pay-per-token
-      budget_recommended_monthly_usd: 10
     models:
     - claude-opus-4-6
     - claude-sonnet-4-6
-    - claude-haiku-4-5
-  google_gemini_paid:
-    name: Google Gemini (Vertex AI)
-    api_base: https://us-central1-aiplatform.googleapis.com/v1
-    api_key_env: GOOGLE_APPLICATION_CREDENTIALS
-    openai_compatible: false
-    adapter: litellm
-    billing:
-      model: pay-per-token
-    models:
-    - gemini-2.5-pro
-    - gemini-2.5-flash
 routing:
   default_mode: single
   strategy: quota_aware
@@ -391,7 +353,7 @@ routing:
     confirm_before_paid: true
     show_cost_estimate: true
 ensemble:
-  enabled: true
+  enabled: false
   panel_size: 3
   judge: llama3.2:3b
   min_provider_families: 2
@@ -402,42 +364,4 @@ local:
   api_base: http://localhost:11434
   models:
     judge: llama3.2:3b
-    fallback: llama3.2:3b
-image_providers:
-  cloudflare_workers_ai:
-    name: Cloudflare Workers AI
-    api_base: https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/run
-    api_key_env: CLOUDFLARE_API_TOKEN
-    account_id_env: CLOUDFLARE_ACCOUNT_ID
-    model: '@cf/black-forest-labs/flux-1-schnell'
-    free_tier:
-      neurons_per_day: 10000
-      neurons_per_image_1024: 19.2
-      estimated_images_per_day: 500
-    format: base64_json
-    quality: 3
-  nvidia_nim:
-    name: NVIDIA NIM
-    api_base: https://integrate.api.nvidia.com/v1
-    api_key_env: NVIDIA_API_KEY
-    model: black-forest-labs/flux.1-schnell
-    free_tier:
-      rpm: 40
-    format: url_or_base64
-    quality: 4
-  huggingface:
-    name: Hugging Face Inference
-    api_base: https://router.huggingface.co/v1/images/generations
-    api_key_env: HF_TOKEN
-    model: black-forest-labs/FLUX.1-dev
-    free_tier:
-      requests_per_day: 1000
-    format: url_or_base64
-    quality: 4
-image_routing:
-  default_provider: nvidia_nim
-  fallback_chain:
-  - nvidia_nim
-  - huggingface
-  - cloudflare_workers_ai
-  quality_preference: high
+    fallback: qwen3:8b

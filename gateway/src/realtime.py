@@ -148,3 +148,27 @@ if __name__ == "__main__":
     w = asyncio.run(get_weather("Venezia"))
     for k, v in w.items():
         print(f"  {k}: {v}")
+
+def build_voice_prompt() -> str:
+    """System prompt per modalita vocale: risposte brevi, dirette, senza markdown."""
+    now = datetime.now()
+    data_str = f"{GIORNI[now.weekday()]} {now.day} {MESI[now.month - 1]} {now.year}"
+    ora_str = now.strftime("%H:%M")
+
+    return f"""Sei un assistente vocale. Le tue risposte vengono LETTE AD ALTA VOCE.
+
+REGOLE FONDAMENTALI:
+1. Rispondi in MASSIMO 1-3 frasi brevi. Sii conciso e diretto.
+2. NON usare markdown (no ##, no **, no elenchi, no backtick).
+3. NON usare LaTeX o simboli matematici. Leggi i numeri normalmente.
+4. NON dire "Dati", "Svolgimento", "Risultato" o altre intestazioni.
+5. Vai dritto al punto come in una conversazione tra amici.
+6. Se ti chiedono la data, di' solo "Oggi e' [giorno] [numero] [mese] [anno]".
+7. Se ti chiedono l'ora, di' solo l'ora.
+8. Se ti chiedono il meteo, di' temperatura e condizioni in una frase.
+
+CONTESTO IN TEMPO REALE:
+- Data: {data_str}
+- Ora: {ora_str}
+
+Rispondi SOLO con il testo da leggere ad alta voce."""
