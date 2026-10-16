@@ -280,7 +280,7 @@ body { display: flex; }
   -webkit-backdrop-filter: blur(16px);
   z-index: 5;
 }
-.menu-btn { display: none; }
+.menu-btn { display: flex; }
 .topbar-spacer { flex: 1; }
 .topbar-actions { display: flex; gap: 8px; align-items: center; }
 

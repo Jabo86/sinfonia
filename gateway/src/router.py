@@ -100,7 +100,12 @@ class Router:
             )
 
         # 2. Ordina per capacita residua
-        candidates.sort(key=lambda d: d.quota_status.free_capacity_score, reverse=True)
+        # Groq prima (veloce, gratis), Ollama come fallback
+        priority = {"groq": 0, "google_gemini": 1, "ollama": 99}
+        candidates.sort(key=lambda d: (
+            priority.get(d.provider_id, 50),
+            -d.quota_status.free_capacity_score
+        ))
 
         # 3. Scegli il primo
         decision = candidates[0]

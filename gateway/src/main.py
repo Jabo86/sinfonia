@@ -19,7 +19,7 @@ from typing import Any
 
 import structlog
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -39,6 +39,7 @@ from image_providers import ImageRouter
 from intent_classifier import Intent, classify, extract_prompt
 from realtime import build_system_prompt, build_voice_prompt, detect_weather_city, get_weather, GIORNI, MESI
 from profession_manager import get_profession_manager
+from file_reader import read_file_bytes
 from music_generator import MusicGenerator
 from translator import Translator
 from video_generator import VideoGenerator
@@ -640,6 +641,29 @@ async def list_professions() -> JSONResponse:
         return JSONResponse({"professions": pm.list_all()})
     except Exception as e:
         return JSONResponse({"professions": [], "error": str(e)})
+
+
+
+
+# ============================================================
+# FILE UPLOAD — Allegati
+# ============================================================
+
+@app.post("/v1/files/upload")
+async def upload_file(file: UploadFile = File(...)) -> JSONResponse:
+    """Riceve un file, estrae il testo, lo restituisce."""
+    try:
+        data = await file.read()
+        if len(data) > 20 * 1024 * 1024:  # 20 MB
+            raise HTTPException(status_code=413, detail="File troppo grande (max 20 MB)")
+
+        result = read_file_bytes(file.filename or "file", data)
+        return JSONResponse(content=result.to_dict())
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.error("sinfonia.upload_error", error=str(e))
+        raise HTTPException(status_code=500, detail=f"Errore lettura file: {str(e)[:200]}")
 
 
 if __name__ == "__main__":

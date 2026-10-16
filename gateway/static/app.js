@@ -100,9 +100,17 @@ async function sendMessage(text) {
 
   try {
     const profile = window.BroProfile && window.BroProfile.getCurrentProfile();
+    const userText = state.messages.filter(m => m.content).map(m => ({ role: m.role, content: m.content }));
+    // Inietta allegati nell'ultimo messaggio utente
+    if (attachments.length > 0 && userText.length > 0) {
+      const lastUser = userText[userText.length - 1];
+      if (lastUser.role === "user") {
+        lastUser.content += buildAttachmentContext();
+      }
+    }
     const payload = {
       model: state.currentModel,
-      messages: state.messages.filter(m => m.content).map(m => ({ role: m.role, content: m.content })),
+      messages: userText,
       profession: profile ? profile.profession : null,
     };
     if (state.currentId) payload.conversation_id = state.currentId;
@@ -227,6 +235,194 @@ function initProfPicker() {
   loadProfessions();
 }
 
+
+
+/* ============================================================
+   ALLEGATI
+   ============================================================ */
+const attachments = [];  // { name, text, size, filetype }
+
+function initAttachments() {
+  const btn = document.getElementById("attach-btn");
+  const input = document.getElementById("file-input");
+  if (!btn || !input) return;
+
+  btn.onclick = () => input.click();
+
+  input.onchange = async (e) => {
+    const files = Array.from(e.target.files || []);
+    for (const file of files) {
+      await uploadFile(file);
+    }
+    input.value = "";
+    renderAttachments();
+  };
+
+  renderAttachments();
+}
+
+async function uploadFile(file) {
+  toast("Caricamento " + file.name + "...", "info", 2000);
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const res = await fetch("/v1/files/upload", {
+      method: "POST",
+      body: formData,
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    if (data.error) {
+      toast("Errore: " + data.error, "error", 4000);
+      return;
+    }
+    attachments.push({
+      name: data.filename,
+      text: data.text,
+      size: data.size_bytes,
+      filetype: data.filetype,
+      pages: data.pages,
+    });
+    toast("Allegato: " + file.name + " (" + data.text.length + " caratteri)", "success", 2000);
+  } catch (err) {
+    toast("Errore upload: " + err.message, "error", 4000);
+  }
+}
+
+function renderAttachments() {
+  const composer = document.querySelector(".composer");
+  if (!composer) return;
+
+  // Rimuovi anteprima precedente
+  const old = composer.querySelector(".attachments-preview");
+  if (old) old.remove();
+
+  if (attachments.length === 0) return;
+
+  const preview = document.createElement("div");
+  preview.className = "attachments-preview";
+  attachments.forEach((att, idx) => {
+    const chip = document.createElement("div");
+    chip.className = "attach-chip";
+    chip.innerHTML = '<span class="chip-name">📎 ' + att.name + '</span><button class="chip-remove" data-idx="' + idx + '">×</button>';
+    chip.querySelector(".chip-remove").onclick = () => {
+      attachments.splice(idx, 1);
+      renderAttachments();
+    };
+    preview.appendChild(chip);
+  });
+  composer.insertBefore(preview, composer.firstChild);
+}
+
+function buildAttachmentContext() {
+  if (attachments.length === 0) return "";
+  const MAX_TOTAL = 4000;
+  let ctx = "\n\n=== ALLEGATI ===\n";
+  let total = 0;
+  for (const att of attachments) {
+    if (total >= MAX_TOTAL) break;
+    const remaining = MAX_TOTAL - total;
+    let text = att.text;
+    if (text.length > remaining) {
+      text = text.slice(0, remaining) + "\n[... troncato ...]";
+    }
+    ctx += "\n--- File: " + att.name + " (" + att.filetype + ") ---\n";
+    ctx += text + "\n";
+    total += text.length;
+  }
+  ctx += "\n=== FINE ALLEGATI ===\n";
+  return ctx;
+}
+
+function clearAttachments() {
+  attachments.length = 0;
+  renderAttachments();
+}
+
+
+
+/* ============================================================
+   SELETTORE MODELLO
+   ============================================================ */
+async function loadModels() {
+  try {
+    const res = await fetch("/v1/models");
+    const data = await res.json();
+    const models = data.data || [];
+    renderModelDropdown(models);
+  } catch (e) {
+    console.error("Errore caricamento modelli:", e);
+  }
+}
+
+function renderModelDropdown(models) {
+  const dropdown = document.getElementById("model-dropdown");
+  if (!dropdown) return;
+  dropdown.innerHTML = "";
+
+  // Auto per primo
+  const autoOpt = document.createElement("div");
+  autoOpt.className = "prof-option" + (state.currentModel === "sinfonia/auto" ? " active" : "");
+  autoOpt.innerHTML = '<span class="prof-opt-icon">🎼</span><span class="prof-opt-name">Auto</span><span class="prof-opt-desc">Scelta automatica</span>';
+  autoOpt.onclick = () => selectModel("sinfonia/auto", "Auto");
+  dropdown.appendChild(autoOpt);
+
+  // Raggruppa per provider
+  const byProvider = {};
+  for (const m of models) {
+    if (m.id === "sinfonia/auto") continue;
+    const parts = m.id.split("/");
+    const provider = parts[1] || "other";
+    if (!byProvider[provider]) byProvider[provider] = [];
+    byProvider[provider].push(m);
+  }
+
+  for (const [provider, list] of Object.entries(byProvider)) {
+    const groupTitle = document.createElement("div");
+    groupTitle.style.cssText = "padding:6px 12px;font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em;";
+    groupTitle.textContent = provider;
+    dropdown.appendChild(groupTitle);
+
+    for (const m of list.slice(0, 10)) {
+      const opt = document.createElement("div");
+      opt.className = "prof-option" + (state.currentModel === m.id ? " active" : "");
+      const shortName = m.id.replace("sinfonia/" + provider + "/", "");
+      opt.innerHTML = '<span class="prof-opt-icon">•</span><span class="prof-opt-name">' + shortName + '</span>';
+      opt.onclick = () => selectModel(m.id, shortName);
+      dropdown.appendChild(opt);
+    }
+  }
+}
+
+function selectModel(modelId, label) {
+  state.currentModel = modelId;
+  const el = document.getElementById("model-name-label");
+  if (el) el.textContent = label.length > 20 ? label.slice(0, 18) + "..." : label;
+  const dropdown = document.getElementById("model-dropdown");
+  if (dropdown) dropdown.classList.remove("open");
+  toast("Modello: " + label, "info", 1500);
+}
+
+function initModelPicker() {
+  const btn = document.getElementById("model-btn");
+  const dropdown = document.getElementById("model-dropdown");
+  if (!btn || !dropdown) return;
+
+  btn.onclick = (e) => {
+    e.stopPropagation();
+    dropdown.classList.toggle("open");
+  };
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".prof-picker")) {
+      dropdown.classList.remove("open");
+    }
+  });
+
+  loadModels();
+}
+
 function init() {
   if (window.BroOnboarding && window.BroOnboarding.showIfNeeded()) return;
   const profile = window.BroProfile && window.BroProfile.getCurrentProfile();
@@ -294,3 +490,22 @@ window.addMessage = addMessage;
 window.renderMessages = renderMessages;
 window.state = state;
 console.log("OK: app.js pronto");
+
+/* ============================================================
+   HANDLER GLOBALE FILE UPLOAD
+   ============================================================ */
+window.handleFileUpload = async function(inputEl) {
+  const files = Array.from(inputEl.files || []);
+  if (files.length === 0) return;
+
+  for (const file of files) {
+    await uploadFile(file);
+  }
+  inputEl.value = "";
+  renderAttachments();
+};
+
+window.uploadFile = uploadFile;
+window.renderAttachments = renderAttachments;
+window.clearAttachments = clearAttachments;
+console.log("OK: handler allegati globale pronto");

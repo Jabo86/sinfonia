@@ -12,6 +12,9 @@ providers:
       notes: Gira in locale sul Mac. Zero costi, zero chiavi, funziona offline.
     models:
     - qwen3:8b
+    - qwen3:8b-8k
+    - llama3.2:3b
+    - qwen3:14b
   groq:
     name: Groq
     api_base: https://api.groq.com/openai/v1
@@ -26,12 +29,12 @@ providers:
     models:
     - openai/gpt-oss-120b
     - qwen/qwen3.8-27b
+    - openai/gpt-oss-20b
     - allam-2-7b
     - canopylabs/orpheus-arabic-saudi
     - canopylabs/orpheus-v1-english
     - meta-llama/llama-prompt-guard-2-22m
     - meta-llama/llama-prompt-guard-2-86m
-    - openai/gpt-oss-20b
     - openai/gpt-oss-safeguard-20b
     - whisper-large-v3
     - whisper-large-v3-turbo
@@ -47,8 +50,8 @@ providers:
         rpm: 15
         rpd: 1500
     models:
-    - gemini-2.5-flash
     - gemini-3.5-flash-lite
+    - gemini-2.0-flash-exp
     - models/antigravity-preview-05-2026
     - models/antigravity-preview-09-2026
     - models/antigravity-preview-latest
@@ -135,7 +138,9 @@ providers:
       limits:
         rpm: 40
     models:
-    - meta/llama-3.3-70b-instruct
+    - meta/llama-3.1-70b-instruct
+    - mistralai/mistral-large-2-instruct
+    - qwen/qwen2.5-coder-32b-instruct
     - 01-ai/yi-large
     - adept/fuyu-8b
     - ai21labs/jamba-1.5-large-instruct
@@ -169,7 +174,6 @@ providers:
     - mistralai/codestral-22b-instruct-v0.1
     - mistralai/mistral-7b-instruct-v0.3
     - mistralai/mistral-large
-    - mistralai/mistral-large-2-instruct
     - mistralai/mixtral-8x22b-v0.1
     - moonshotai/kimi-k2.6
     - nv-mistralai/mistral-nemo-12b-instruct
