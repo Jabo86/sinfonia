@@ -1,39 +1,41 @@
-# Python
+
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-dist/
-*.egg-info/
-
-# Virtual environments
-venv/
-env/
-ENV/
-.venv/
-
-# Environment variables
+!.env.example
+.DS_Store
 .env
 .env.*
-!.env.example
-
-# Database locale
+.idea/
+.Python
+.venv/
+.vscode/
 *.db
+*.dxf
+*.egg-info/
+*.log
+*.onnx
+*.py[cod]
+*.so
 *.sqlite
 *.sqlite3
-
-# IDE
-.vscode/
-.idea/
-*.swp
 *.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
+*.swp
+*$py.class
+# Database locale
+# Environment variables
+# IDE
 # Log
-*.log
+# OS
+# Python
+# Virtual environments
+build/
+data/outputs/
+data/voices/
+data/vosk/
+data/whisper-small/
+dist/
+env/
+ENV/
 logs/
+Thumbs.db
+venv-chatterbox/
+venv/
