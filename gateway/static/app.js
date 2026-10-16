@@ -90,12 +90,18 @@ async function handleSkinCommand(text) {
     const name = window.Face.getSkinName();
     if ($("#face-name")) $("#face-name").textContent = name;
     if ($("#skin-name")) $("#skin-name").textContent = name;
-    window.Face.setMood("happy");
+    
     setTimeout(() => window.Face.setMood("idle"), 2500);
     toast("Forma: " + name, "info", 2000);
     return true;
   }
   return false;
+}
+
+
+function addMessage(role, content, meta) {
+  state.messages.push({ role: role, content: content, meta: meta || null, error: false });
+  renderMessages();
 }
 
 function renderMessages() {
@@ -137,7 +143,7 @@ async function sendMessage(text) {
   }
   state.isGenerating = true;
   const send = $("#send"); if (send) send.disabled = true;
-  if (window.Face) window.Face.setMood("thinking");
+  
   state.messages.push({ role: "user", content: text });
   renderMessages();
   if ($("#input")) { $("#input").value = ""; $("#input").style.height = "auto"; }
@@ -147,19 +153,20 @@ async function sendMessage(text) {
   try {
     const payload = {
       model: state.currentModel,
+        profession: (window.BroProfile && window.BroProfile.getCurrentProfile()) ? window.BroProfile.getCurrentProfile().profession : null,
       messages: state.messages.filter(m => m.content).map(m => ({ role: m.role, content: m.content })),
     };
     if (state.currentId) payload.conversation_id = state.currentId;
     const data = await api("/v1/chat/completions", { method: "POST", body: JSON.stringify(payload) });
     placeholder.content = data.choices[0].message.content;
     state.currentId = data.conversation_id || state.currentId;
-    if (window.Face) { window.Face.setMood("speaking"); setTimeout(() => window.Face.setMood("idle"), 2000); }
+    if (window.Face) {  setTimeout(() => window.Face.setMood("idle"), 2000); }
     renderMessages();
     saveConversation();
   } catch (e) {
     placeholder.content = "Errore: " + e.message;
     placeholder.error = true;
-    if (window.Face) { window.Face.setMood("sad"); setTimeout(() => window.Face.setMood("idle"), 2000); }
+    if (window.Face) {  setTimeout(() => window.Face.setMood("idle"), 2000); }
     renderMessages();
   } finally {
     state.isGenerating = false;
@@ -209,6 +216,114 @@ function newChat() {
   if ($("#input")) $("#input").focus();
 }
 
+
+/* ============================================================
+   SELETTORE PROFILO
+   ============================================================ */
+async function loadProfessions() {
+  try {
+    const res = await fetch("/v1/professions");
+    const data = await res.json();
+    const professions = data.professions || [];
+    renderProfDropdown(professions);
+    // Applica il profilo corrente
+    const profile = window.BroProfile && window.BroProfile.getCurrentProfile();
+    if (profile) {
+      const match = professions.find(p => p.id === profile.profession);
+      if (match) {
+        document.getElementById("prof-icon").textContent = match.icon;
+        document.getElementById("prof-name").textContent = match.name;
+      }
+    }
+  } catch (e) {
+    console.error("Errore caricamento profili:", e);
+  }
+}
+
+let _professionsCache = [];
+
+function renderProfDropdown(professions) {
+  _professionsCache = professions;
+  const dropdown = document.getElementById("prof-dropdown");
+  if (!dropdown) return;
+  dropdown.innerHTML = "";
+
+  const currentProfile = window.BroProfile && window.BroProfile.getCurrentProfile();
+  const currentId = currentProfile ? currentProfile.profession : "generico";
+
+  for (const p of professions) {
+    const opt = document.createElement("div");
+    opt.className = "prof-option" + (p.id === currentId ? " active" : "");
+    opt.innerHTML = `
+      <span class="prof-opt-icon">${p.icon}</span>
+      <span class="prof-opt-name">${p.name}</span>
+      <span class="prof-opt-desc">${p.description || ""}</span>
+    `;
+    opt.onclick = () => selectProfession(p);
+    dropdown.appendChild(opt);
+  }
+}
+
+function selectProfession(prof) {
+  // Salva nel profilo utente
+  if (window.BroProfile) {
+    const current = window.BroProfile.getProfile() || {};
+    current.profession = prof.id;
+    if (!current.userName) current.userName = "Utente";
+    window.BroProfile.saveProfile(current);
+  }
+
+  // Aggiorna UI
+  document.getElementById("prof-icon").textContent = prof.icon;
+  document.getElementById("prof-name").textContent = prof.name;
+  document.getElementById("prof-dropdown").classList.remove("open");
+
+  // Aggiorna anche la skin per coerenza visiva
+  const skinMap = {
+    generico: "ai",
+    medico: "human",
+    avvocato: "human",
+    programmatore: "ai",
+    insegnante: "human",
+    artigiano: "ai",
+    commercialista: "human",
+    ricercatore: "alien",
+    cuoco: "fire",
+    musicista: "ghost",
+  };
+  if (window.Face && skinMap[prof.id]) {
+    
+  }
+
+  // Aggiorna anche il nome assistente (Doc, Dev, ecc.)
+  const logoText = document.querySelector(".logo-text");
+  if (logoText) logoText.textContent = prof.name.toUpperCase();
+
+  const faceName = document.getElementById("face-name");
+  if (faceName) faceName.textContent = prof.name;
+
+  toast(`Profilo: ${prof.icon} ${prof.name}`, "success", 2000);
+}
+
+function initProfPicker() {
+  const btn = document.getElementById("prof-btn");
+  const dropdown = document.getElementById("prof-dropdown");
+  if (!btn || !dropdown) return;
+
+  btn.onclick = (e) => {
+    e.stopPropagation();
+    dropdown.classList.toggle("open");
+  };
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".prof-picker")) {
+      dropdown.classList.remove("open");
+    }
+  });
+
+  loadProfessions();
+}
+
 function init() {
   if (window.BroOnboarding && window.BroOnboarding.showIfNeeded()) return;
 
@@ -218,7 +333,7 @@ function init() {
     if (document.querySelector(".topbar-title")) document.querySelector(".topbar-title").textContent = profile.assistant.toUpperCase() + " // " + profile.userName;
     if ($("#face-name")) $("#face-name").textContent = profile.assistant;
     if ($("#skin-name")) $("#skin-name").textContent = profile.assistant;
-    if (window.Face && profile.skin) window.Face.setSkin(profile.skin);
+    if (window.Face && profile.skin) 
     if ($("#input")) $("#input").placeholder = "Parla con " + profile.assistant + "...";
     if (state.messages.length === 0 && profile.greeting) {
       state.messages.push({ role: "assistant", content: "**Ehi " + profile.userName + "**, sono **" + profile.assistant + "**. " + profile.greeting });
@@ -274,7 +389,7 @@ function init() {
     const idx = skins.indexOf(currentKey);
     const next = skins[(idx + 1) % skins.length];
     state._skinKey = next;
-    window.Face.setSkin(next);
+    
     const name = window.Face.getSkinName();
     if ($("#face-name")) $("#face-name").textContent = name;
     if ($("#skin-name")) $("#skin-name").textContent = name;
@@ -310,3 +425,64 @@ function init() {
 }
 
 document.addEventListener("DOMContentLoaded", init);
+
+/* ============================================================
+   VOICE STATE POLLING — Feedback visivo HUD
+   ============================================================ */
+(function() {
+  let lastState = "idle";
+  let lastRealState = "idle";
+
+  async function pollVoiceState() {
+    try {
+      const res = await fetch("/v1/voice/state");
+      if (!res.ok) return;
+      const data = await res.json();
+      const state = data.state || "idle";
+
+      if (state !== lastState) {
+        lastState = state;
+        applyMood(state);
+      }
+    } catch (e) {
+      // server offline, ignora
+    }
+  }
+
+  function applyMood(state) {
+    if (!window.Face) return;
+    let mood = "idle";
+
+    if (state === "recording") mood = "listening";
+    else if (state === "transcribing") mood = "thinking";
+    else if (state === "thinking") mood = "thinking";
+    else if (state === "speaking") mood = "speaking";
+    else if (state.startsWith("heard:")) mood = "happy";
+    else if (state.startsWith("response:")) mood = "speaking";
+    else if (state === "listening") mood = "listening";
+    else mood = "idle";
+
+    
+    lastRealState = mood;
+
+    // Aggiorna anche il topbar con l'ultima frase sentita
+    if (state.startsWith("heard:") && document.querySelector(".topbar-title")) {
+      const text = state.substring(6);
+      // niente, lasciamo il titolo normale
+    }
+  }
+
+  setInterval(pollVoiceState, 500);
+  pollVoiceState();
+
+  console.log("OK: voice state polling attivo");
+})();
+
+/* ============================================================
+   ESPOSIZIONE GLOBALE per voice_ui.js
+   ============================================================ */
+window.sendMessage = sendMessage;
+window.addMessage = addMessage;
+window.renderMessages = renderMessages;
+window.state = state;
+console.log("OK: funzioni esposte globalmente");

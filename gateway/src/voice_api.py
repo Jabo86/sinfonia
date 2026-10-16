@@ -74,3 +74,23 @@ async def voice_status() -> JSONResponse:
         })
     except Exception as e:
         return JSONResponse({"tts_available": False, "error": str(e)})
+
+@router.get("/state")
+async def voice_state() -> JSONResponse:
+    """Stato corrente del voice assistant (per la UI)."""
+    import json
+    import time
+    from pathlib import Path
+    state_file = Path(__file__).resolve().parent.parent.parent / "data" / "voice_state.json"
+    try:
+        if state_file.exists():
+            with open(state_file) as f:
+                data = json.load(f)
+            # Se lo stato è più vecchio di 10 secondi, considera idle
+            age = time.time() - data.get("timestamp", 0)
+            if age > 10:
+                return JSONResponse({"state": "idle", "age": age})
+            return JSONResponse(data)
+    except Exception:
+        pass
+    return JSONResponse({"state": "idle"})

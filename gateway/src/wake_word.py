@@ -1,12 +1,11 @@
 """
-Bro — Wake Word + Ascolto Continuo
-Rileva "Ehi Doc" / "Ehi Bro" e attiva la trascrizione.
-Tutto locale con Vosk.
+Bro — Wake Word con stream dinamico.
+Lo stream audio viene chiuso in pausa e riaperto al resume,
+evitando conflitti con la registrazione.
 """
 
 from __future__ import annotations
 
-import asyncio
 import json
 import queue
 import threading
@@ -20,7 +19,6 @@ log = structlog.get_logger()
 
 VOSK_MODEL_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "vosk" / "vosk-model-small-it-0.4"
 
-# Wake word riconosciute (Vosk trascrive foneticamente)
 WAKE_WORDS = [
     "ehi doc", "ei doc", "hey doc",
     "ehi bro", "ei bro", "hey bro",
@@ -29,17 +27,15 @@ WAKE_WORDS = [
 
 
 class WakeWordListener:
-    """Ascolta il microfono in continuazione e rileva la wake word."""
-
     def __init__(self, on_wake: Callable[[], None] | None = None):
         self.on_wake = on_wake
         self._running = False
+        self._paused = False
         self._thread: threading.Thread | None = None
         self._model = None
-        self._recognizer = None
         self._audio_queue: queue.Queue = queue.Queue()
-        self._wake_detected = False
         self._cooldown_until = 0
+        self._lock = threading.Lock()
 
     def _load_model(self):
         if self._model is None:
@@ -52,55 +48,97 @@ class WakeWordListener:
 
     def _audio_callback(self, indata, frames, time_info, status):
         if status:
-            log.warning("wake.audio_status", status=str(status))
-        self._audio_queue.put(bytes(indata))
+            return
+        if self._paused:
+            return
+        try:
+            self._audio_queue.put_nowait(bytes(indata))
+        except queue.Full:
+            pass
+
+    def _drain_queue(self):
+        count = 0
+        while True:
+            try:
+                self._audio_queue.get_nowait()
+                count += 1
+            except queue.Empty:
+                break
+        return count
 
     def _listen_loop(self):
-        """Loop di ascolto (gira in un thread separato)."""
         import sounddevice as sd
         from vosk import KaldiRecognizer
 
         self._load_model()
-        rec = KaldiRecognizer(self._model, 16000)
-        rec.SetWords(False)
-
         log.info("wake.listening", wake_words=WAKE_WORDS)
 
-        with sd.RawInputStream(
-            samplerate=16000,
-            blocksize=8000,
-            dtype="int16",
-            channels=1,
-            callback=self._audio_callback,
-        ):
-            while self._running:
-                try:
-                    data = self._audio_queue.get(timeout=0.5)
-                except queue.Empty:
-                    continue
+        while self._running:
+            # Se in pausa, dormi senza stream aperto
+            if self._paused:
+                time.sleep(0.1)
+                continue
 
-                if rec.AcceptWaveform(data):
-                    result = json.loads(rec.Result())
-                    text = result.get("text", "").lower().strip()
-                    if not text:
-                        continue
+            # Apri lo stream audio
+            try:
+                with sd.RawInputStream(
+                    samplerate=16000,
+                    blocksize=8000,
+                    dtype="int16",
+                    channels=1,
+                    callback=self._audio_callback,
+                ):
+                    rec = KaldiRecognizer(self._model, 16000)
+                    rec.SetWords(False)
+                    # Svuota coda residua
+                    self._drain_queue()
+                    log.info("wake.stream_open")
 
-                    # Rileva wake word
-                    now = time.time()
-                    if now < self._cooldown_until:
-                        continue
+                    # Loop interno: leggi dal device finché non entriamo in pausa
+                    while self._running and not self._paused:
+                        try:
+                            data = self._audio_queue.get(timeout=0.5)
+                        except queue.Empty:
+                            continue
 
-                    for wake in WAKE_WORDS:
-                        if wake in text:
-                            log.info("wake.detected", wake=wake, full_text=text)
-                            self._wake_detected = True
-                            self._cooldown_until = now + 3.0  # 3s di cooldown
-                            if self.on_wake:
-                                try:
-                                    self.on_wake()
-                                except Exception as e:
-                                    log.error("wake.callback_error", error=str(e))
+                        if self._paused:
                             break
+
+                        try:
+                            if rec.AcceptWaveform(data):
+                                result = json.loads(rec.Result())
+                                text = result.get("text", "").lower().strip()
+                                if not text:
+                                    continue
+
+                                now = time.time()
+                                if now < self._cooldown_until:
+                                    continue
+
+                                for wake in WAKE_WORDS:
+                                    if wake in text:
+                                        log.info("wake.detected", wake=wake, full_text=text)
+                                        self._cooldown_until = now + 3.0
+                                        if self.on_wake:
+                                            try:
+                                                self.on_wake()
+                                            except Exception as e:
+                                                log.error("wake.callback_error", error=str(e))
+                                        break
+                        except Exception as e:
+                            log.error("wake.recognize_error", error=str(e))
+                            break
+
+                    log.info("wake.stream_close")
+
+            except Exception as e:
+                log.error("wake.stream_error", error=str(e))
+                time.sleep(0.5)
+
+            # Svuota coda prima di riaprire
+            self._drain_queue()
+            # Piccola pausa per stabilizzare il device
+            time.sleep(0.2)
 
     def start(self):
         if self._running:
@@ -116,30 +154,41 @@ class WakeWordListener:
             self._thread.join(timeout=3.0)
         log.info("wake.stopped")
 
+    def pause(self):
+        with self._lock:
+            self._paused = True
+            self._drain_queue()
+        # Attendi che lo stream sia effettivamente chiuso
+        time.sleep(0.3)
+        log.info("wake.paused")
+
+    def resume(self):
+        with self._lock:
+            self._drain_queue()
+            self._paused = False
+            self._cooldown_until = time.time() + 1.5
+        # Attendi che lo stream sia riaperto
+        time.sleep(0.3)
+        log.info("wake.resumed")
+
     @property
     def is_running(self) -> bool:
-        return self._running
-
-    @property
-    def wake_detected(self) -> bool:
-        w = self._wake_detected
-        self._wake_detected = False
-        return w
+        return self._running and not self._paused
 
 
-# === Test standalone ===
 if __name__ == "__main__":
-    print("=== Test Wake Word ===")
-    print(f"Modello: {VOSK_MODEL_PATH}")
-    print(f"Modello esiste: {VOSK_MODEL_PATH.exists()}")
-    print(f"Wake words: {WAKE_WORDS}")
-    print()
-    print("Ascolto in corso... di' 'Ehi Doc' o 'Ehi Bro'")
-    print("Premi Ctrl+C per fermare")
-    print()
+    print("=== Test Wake Word (multi-interazione) ===")
+    counter = [0]
 
     def on_wake():
-        print("🎤 WAKE WORD RILEVATA! (adesso parleresti)")
+        counter[0] += 1
+        print(f"\n🎤 WAKE WORD #{counter[0]} RILEVATA!\n")
+        # Simula registrazione
+        print("   [simulo registrazione 3 sec...]")
+        listener.pause()
+        time.sleep(3)
+        listener.resume()
+        print("   [riprende ascolto...]\n")
 
     listener = WakeWordListener(on_wake=on_wake)
     try:

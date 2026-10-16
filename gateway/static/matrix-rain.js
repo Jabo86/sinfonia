@@ -12,7 +12,7 @@
     drops = new Array(columns).fill(1);
   }
   function draw() {
-    ctx.fillStyle = "rgba(0, 0, 0, 0.06)";
+    ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
     ctx.fillRect(0, 0, width, height);
     ctx.font = fontSize + "px 'Courier New', monospace";
     for (let i = 0; i < drops.length; i++) {
@@ -20,9 +20,9 @@
       const x = i * fontSize;
       const y = drops[i] * fontSize;
       const rand = Math.random();
-      if (rand > 0.975) { ctx.fillStyle = "#c8ffe0"; ctx.shadowColor = "#00ff88"; ctx.shadowBlur = 12; }
-      else if (rand > 0.9) { ctx.fillStyle = "#00ff88"; ctx.shadowColor = "#00ff88"; ctx.shadowBlur = 8; }
-      else { ctx.fillStyle = "#0a8a4a"; ctx.shadowBlur = 0; }
+      if (rand > 0.975) { ctx.fillStyle = "#fff8b0"; ctx.shadowColor = "#ffcc00"; ctx.shadowBlur = 12; }
+      else if (rand > 0.9) { ctx.fillStyle = "#ffcc00"; ctx.shadowColor = "#ffcc00"; ctx.shadowBlur = 8; }
+      else { ctx.fillStyle = "#8a6f00"; ctx.shadowBlur = 0; }
       ctx.fillText(char, x, y);
       if (y > height && Math.random() > 0.975) drops[i] = 0;
       drops[i]++;

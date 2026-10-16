@@ -36,6 +36,7 @@ from self_healer import SelfHealer
 from image_providers import ImageRouter
 from intent_classifier import Intent, classify, extract_prompt
 from realtime import build_system_prompt, build_voice_prompt, detect_weather_city, get_weather
+from profession_manager import get_profession_manager
 from music_generator import MusicGenerator
 from translator import Translator
 from video_generator import VideoGenerator
@@ -161,6 +162,7 @@ class ChatCompletionRequest(BaseModel):
     stream: bool = False
     conversation_id: str | None = None
     voice_mode: bool = False
+    profession: str | None = None
     model_config = {"extra": "allow"}
 
 
@@ -205,6 +207,26 @@ async def list_models() -> dict[str, Any]:
     return {"object": "list", "data": models}
 
 
+
+
+def _detect_creative_intent(text: str) -> str | None:
+    """Rileva se il messaggio chiede un contenuto creativo."""
+    t = text.lower()
+    # Canzone
+    if any(k in t for k in ["canzone", "song", "testo di una canzone", "scrivimi una canzone", "creami una canzone", "componi una canzone", "lyrics"]):
+        return "song"
+    # Poesia
+    if any(k in t for k in ["poesia", "poema", "versi", "poetami", "scrivi una poesia"]):
+        return "poem"
+    # Email
+    if any(k in t for k in ["scrivi un'email", "scrivi una mail", "componi un'email", "redigi una mail"]):
+        return "email"
+    # Storia/racconto
+    if any(k in t for k in ["racconto", "storia breve", "fiaba", "favola", "scrivi una storia"]):
+        return "story"
+    return None
+
+
 @app.post("/v1/chat/completions")
 async def chat_completions(request: ChatCompletionRequest) -> JSONResponse:
     # --- Gestione conversazione persistente ---
@@ -221,7 +243,22 @@ async def chat_completions(request: ChatCompletionRequest) -> JSONResponse:
         history = []
 
     new_messages = [m.model_dump() for m in request.messages]
-    if request.voice_mode:
+    # Priorita: profession > voice_mode > default
+    if request.profession:
+        try:
+            pm = get_profession_manager()
+            base_prompt = pm.get_system_prompt(request.profession)
+            if request.voice_mode:
+                # In modalita voce, aggiungi istruzioni voce al prompt del profilo
+                voice_suffix = "\n\nIMPORTANTE: rispondi in modo naturale per essere letto ad alta voce, senza markdown o simboli."
+                SISTEMA_SINFONIA = base_prompt + voice_suffix
+            else:
+                SISTEMA_SINFONIA = base_prompt
+            log.info("sinfonia.profession_active", profession=request.profession)
+        except Exception as e:
+            log.warning("sinfonia.profession_error", profession=request.profession, error=str(e))
+            SISTEMA_SINFONIA = build_voice_prompt() if request.voice_mode else build_system_prompt()
+    elif request.voice_mode:
         SISTEMA_SINFONIA = build_voice_prompt()
     else:
         SISTEMA_SINFONIA = build_system_prompt()
@@ -578,6 +615,18 @@ async def translate(request: TranslationRequest) -> JSONResponse:
         source_lang=request.source_lang,
     )
     return JSONResponse(content=result.to_dict())
+
+
+
+
+@app.get("/v1/professions")
+async def list_professions() -> JSONResponse:
+    """Elenco dei profili professionali disponibili."""
+    try:
+        pm = get_profession_manager()
+        return JSONResponse({"professions": pm.list_all()})
+    except Exception as e:
+        return JSONResponse({"professions": [], "error": str(e)})
 
 
 if __name__ == "__main__":

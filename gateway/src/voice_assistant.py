@@ -1,11 +1,13 @@
 """
 Bro — Voice Assistant Loop
 Ascolta in continuazione, rileva "Ehi Doc", registra, trascrive, invia a Sinfonia, risponde a voce.
+Supporta interazioni multiple consecutive.
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 import sys
 import time
@@ -15,17 +17,21 @@ from typing import Callable
 import httpx
 import structlog
 
-# Assicura che i moduli in gateway/src siano importabili
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 log = structlog.get_logger()
 
 SAMPLE_RATE = 16000
 CHANNELS = 1
-SILENCE_THRESHOLD = 0.025
-SILENCE_DURATION = 1.5
+SILENCE_THRESHOLD = 0.022
+SILENCE_DURATION = 1.2
 MAX_RECORD_SECONDS = 15
 SINFONIA_URL = "http://127.0.0.1:8080"
+VOICE_STATE_FILE = Path(__file__).resolve().parent.parent.parent / "data" / "voice_state.json"
+
+# Modalità conversazione continua
+CONVERSATION_WINDOW = 8.0    # secondi di ascolto attivo dopo ogni risposta
+CONVERSATION_MAX_TURNS = 10  # max turni prima di tornare alla wake word
 
 
 class VoiceAssistant:
@@ -37,6 +43,7 @@ class VoiceAssistant:
         self._running = False
         self._conversation_id: str | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
+        self._interaction_lock = asyncio.Lock()
 
     @property
     def stt(self):
@@ -54,6 +61,12 @@ class VoiceAssistant:
 
     def _set_state(self, state: str):
         log.info("voice_assistant.state", state=state)
+        try:
+            import time as _t
+            with open(VOICE_STATE_FILE, "w") as f:
+                json.dump({"state": state, "timestamp": _t.time()}, f)
+        except Exception:
+            pass
         if self.on_state:
             try:
                 self.on_state(state)
@@ -61,7 +74,6 @@ class VoiceAssistant:
                 pass
 
     def _record_until_silence(self):
-        """Registra dal microfono fino a silenzio prolungato. Ritorna np.ndarray float32."""
         import numpy as np
         import sounddevice as sd
 
@@ -140,71 +152,168 @@ class VoiceAssistant:
             return data["choices"][0]["message"]["content"]
 
     async def _interaction_loop(self):
-        try:
-            self._set_state("recording")
-            audio_array = await asyncio.to_thread(self._record_until_silence)
-            if audio_array is None or len(audio_array) == 0:
+        """Loop conversazione: wake → risposta → finestra conversazione → altri turni → wake."""
+        async with self._interaction_lock:
+            try:
+                if self._wake:
+                    self._wake.pause()
+
+                # Primo turno (dopo wake word)
+                await self._do_one_turn(first_turn=True)
+
+                # Turni di conversazione continua
+                for turn in range(CONVERSATION_MAX_TURNS):
+                    log.info("voice_assistant.conversation_window", turn=turn + 1)
+                    self._set_state("listening")
+
+                    # Ascolta fino a CONVERSATION_WINDOW secondi per un nuovo input
+                    audio = await asyncio.to_thread(self._record_with_timeout, CONVERSATION_WINDOW)
+                    if audio is None:
+                        log.info("voice_assistant.conversation_end", reason="silence")
+                        break
+
+                    # Trascrivi
+                    self._set_state("transcribing")
+                    result = await asyncio.to_thread(
+                        self.stt.transcribe_numpy, audio, SAMPLE_RATE
+                    )
+                    if result.is_empty or len(result.text.strip()) < 2:
+                        log.info("voice_assistant.empty_turn")
+                        break
+
+                    text = result.text.strip()
+                    log.info("voice_assistant.transcribed", text=text, turn=turn + 2)
+                    self._set_state("heard:" + text)
+
+                    # Chiedi a Sinfonia
+                    self._set_state("thinking")
+                    response = await self._ask_sinfonia(text)
+                    log.info("voice_assistant.response", text=response[:100])
+
+                    # Parla
+                    self._set_state("speaking")
+                    clean_text = self._clean_for_tts(response)
+                    await asyncio.to_thread(self.tts.speak, clean_text)
+
+            except Exception as e:
+                log.error("voice_assistant.error", error=str(e))
+            finally:
                 self._set_state("idle")
+                await asyncio.sleep(0.5)
+                if self._wake:
+                    self._wake.resume()
+                log.info("voice_assistant.ready_for_wake_word")
+
+    async def _do_one_turn(self, first_turn: bool = False):
+        """Registra, trascrive, chiede a Sinfonia, parla."""
+        self._set_state("recording")
+        audio_array = await asyncio.to_thread(self._record_until_silence)
+        if audio_array is None or len(audio_array) == 0:
+            log.info("voice_assistant.no_audio")
+            return
+
+        self._set_state("transcribing")
+        result = await asyncio.to_thread(
+            self.stt.transcribe_numpy, audio_array, SAMPLE_RATE
+        )
+        if result.is_empty:
+            log.info("voice_assistant.empty_transcription")
+            return
+
+        text = result.text.strip()
+        log.info("voice_assistant.transcribed", text=text)
+        self._set_state("heard:" + text)
+
+        self._set_state("thinking")
+        response = await self._ask_sinfonia(text)
+        log.info("voice_assistant.response", text=response[:100])
+
+        self._set_state("speaking")
+        clean_text = self._clean_for_tts(response)
+        await asyncio.to_thread(self.tts.speak, clean_text)
+
+    def _record_with_timeout(self, timeout_seconds: float):
+        """
+        Registra per un tempo massimo (finestra di conversazione).
+        Ritorna None se non sente nulla, altrimenti l'audio.
+        """
+        import numpy as np
+        import sounddevice as sd
+
+        log.info("voice_assistant.window_start", timeout=timeout_seconds)
+        audio_frames = []
+        silence_frames = 0
+        started_speaking = False
+        silence_limit = int(SILENCE_DURATION * SAMPLE_RATE / 1024)
+        max_frames = int(timeout_seconds * SAMPLE_RATE / 1024)
+
+        def callback(indata, frames, time_info, status):
+            nonlocal audio_frames, silence_frames, started_speaking
+            if status:
                 return
+            audio_frames.append(indata.copy())
+            rms = float(np.sqrt(np.mean(indata ** 2)))
+            if rms > SILENCE_THRESHOLD:
+                started_speaking = True
+                silence_frames = 0
+            elif started_speaking:
+                silence_frames += 1
 
-            self._set_state("transcribing")
-            result = await asyncio.to_thread(
-                self.stt.transcribe_numpy, audio_array, SAMPLE_RATE
-            )
-            if result.is_empty:
-                log.info("voice_assistant.empty_transcription")
-                self._set_state("idle")
-                return
+        stream = sd.InputStream(
+            samplerate=SAMPLE_RATE,
+            channels=CHANNELS,
+            dtype="float32",
+            blocksize=1024,
+            callback=callback,
+        )
+        stream.start()
 
-            text = result.text.strip()
-            log.info("voice_assistant.transcribed", text=text)
-            self._set_state("heard:" + text)
+        frames_count = 0
+        while frames_count < max_frames:
+            time.sleep(0.05)
+            frames_count += 1
+            # Se ha iniziato a parlare e poi ha smesso, esci
+            if started_speaking and silence_frames >= silence_limit:
+                break
 
-            self._set_state("thinking")
-            response = await self._ask_sinfonia(text)
-            log.info("voice_assistant.response", text=response[:100])
-            self._set_state("response:" + response[:100])
+        stream.stop()
+        stream.close()
 
-            self._set_state("speaking")
-            clean_text = self._clean_for_tts(response)
-            log.info("voice_assistant.tts_clean", text=clean_text[:100])
-            await asyncio.to_thread(self.tts.speak, clean_text)
+        # Se non ha mai parlato, ritorna None (finestra scaduta silenziosamente)
+        if not started_speaking:
+            log.info("voice_assistant.window_expired")
+            return None
 
-        except Exception as e:
-            log.error("voice_assistant.error", error=str(e))
-        finally:
-            self._set_state("idle")
+        if not audio_frames:
+            return None
+
+        audio = np.concatenate(audio_frames, axis=0).flatten()
+        # Rimuovi i primi frame di silenzio (prima che iniziasse a parlare)
+        duration = len(audio) / SAMPLE_RATE
+        log.info("voice_assistant.window_recorded", duration=round(duration, 2))
+        return audio
+
 
     def _clean_for_tts(self, text: str) -> str:
-        """Pulisce il testo per TTS rimuovendo markdown, LaTeX, intestazioni."""
-        # Codice
         text = re.sub(r"```[\s\S]*?```", "", text)
         text = re.sub(r"`[^`]+`", "", text)
-        # LaTeX
         text = re.sub(r"\$\$[\s\S]*?\$\$", "", text)
         text = re.sub(r"\$[^\$]+\$", "", text)
-        # Intestazioni markdown
         text = re.sub(r"^#+\s*", "", text, flags=re.MULTILINE)
-        # Grassetti/corsivi
         text = re.sub(r"\*\*([^*]+)\*\*", r"\1", text)
         text = re.sub(r"\*([^*]+)\*", r"\1", text)
         text = re.sub(r"__([^_]+)__", r"\1", text)
         text = re.sub(r"_([^_]+)_", r"\1", text)
-        # Link
         text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
-        # Tabelle
         text = re.sub(r"\|[^\n]+\|", "", text)
-        # Liste puntate
         text = re.sub(r"^\s*[-*+]\s+", "", text, flags=re.MULTILINE)
         text = re.sub(r"^\s*\d+\.\s+", "", text, flags=re.MULTILINE)
-        # Intestazioni testuali indesiderate
         for header in ["Dati", "Svolgimento", "Risultato finale", "Risultato", "Risposta", "Note", "Soluzione"]:
             text = re.sub(r"\b" + header + r"\s*:?\s*", "", text, flags=re.IGNORECASE)
-        # Compatta
         text = re.sub(r"\n\s*\n", " ", text)
         text = re.sub(r"\s+", " ", text).strip()
-        if len(text) > 500:
-            text = text[:500] + "..."
+        if len(text) > 2000:
+            text = text[:2000] + "..."
         return text
 
     def start(self):
@@ -247,11 +356,11 @@ class VoiceAssistant:
 if __name__ == "__main__":
     print("=== Bro Voice Assistant ===")
     print()
-    print("Sistema operativo:")
-    print("  1. Dì 'Ehi Doc' o 'Ehi Bro'")
-    print("  2. Parla (verrà registrato)")
-    print("  3. Smetti di parlare (rilevato silenzio automatico)")
-    print("  4. Bro risponde a voce")
+    print("1. Dì 'Ehi Doc' o 'Ehi Bro'")
+    print("2. Parla")
+    print("3. Smetti di parlare")
+    print("4. Bro risponde a voce")
+    print("5. RIPETI — puoi fare quante domande vuoi!")
     print()
     print("Premi Ctrl+C per fermare")
     print()
