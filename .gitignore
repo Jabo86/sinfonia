@@ -39,3 +39,4 @@ logs/
 Thumbs.db
 venv-chatterbox/
 venv/
+data/voice_state.json
