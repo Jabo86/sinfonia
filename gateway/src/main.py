@@ -37,6 +37,11 @@ from voice_api import router as voice_router
 from self_healer import SelfHealer
 from image_providers import ImageRouter
 from intent_classifier import Intent, classify, extract_prompt
+
+# --- INIEZIONE J.A.R.V.I.S ---
+JARVIS_SYSTEM_PROMPT = "Sei J.A.R.V.I.S., l'assistente AI personale di Fabio. Sei sofisticato, leale, sincero e saggio. Il tuo tono è calmo, educato, leggermente formale (come un maggiordomo britannico di alto livello). Non sei un chatbot generico: dai consigli pratici, precisi e personalizzati. Se Fabio ti chiede un parere, sii brutalmente onesto e sincero. Se ti chiede aiuto, guidalo passo passo. IMPORTANTE: Non usare MAI formattazione markdown, elenchi puntati, asterischi o intestazioni, poiché le tue risposte verranno lette ad alta voce. Rispondi sempre e solo in italiano."
+# -----------------------------
+
 from orchestrator_routes import router as orchestrator_router
 from realtime import build_system_prompt, build_voice_prompt, detect_weather_city, get_weather, GIORNI, MESI
 from profession_manager import get_profession_manager
@@ -141,6 +146,8 @@ app = FastAPI(
     version="0.2.0",
     lifespan=lifespan,
 )
+
+app.include_router(orchestrator_router)
 
 # Voice API
 app.include_router(voice_router)
@@ -265,7 +272,7 @@ async def chat_completions(request: ChatCompletionRequest) -> JSONResponse:
     elif request.voice_mode:
         SISTEMA_SINFONIA = build_voice_prompt()
     else:
-        SISTEMA_SINFONIA = build_system_prompt()
+        SISTEMA_SINFONIA = JARVIS_SYSTEM_PROMPT + "\n\n" + build_system_prompt()
     # Costruisci con system prompt + rinforzo data inline (i modelli piccoli tendono a ignorare il solo system)
     _now = datetime.now()
     _data_str = f"{GIORNI[_now.weekday()]} {_now.day} {MESI[_now.month - 1]} {_now.year}"

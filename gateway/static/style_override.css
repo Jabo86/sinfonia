@@ -1,0 +1,24 @@
+/* Rende trasparente lo sfondo della chat per far vedere la sfera */
+.main.with-sidebar {
+  background: transparent !important;
+}
+body {
+  background: #000000 !important;
+}
+/* Posiziona i messaggi sopra la sfera */
+.messages, .composer-wrap, .topbar, .voice-status {
+  position: relative;
+  z-index: 10 !important;
+}
+/* Sfera dietro ma visibile */
+#jarvis-canvas-container {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 1 !important;
+  pointer-events: none !important;
+  opacity: 0.8 !important;
+}

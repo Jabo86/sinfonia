@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Sinfonia — J.A.R.V.I.S.</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000000; color: #fff; font-family: 'Inter', sans-serif; overflow: hidden; height: 100vh; }
+    #canvas-container { position: fixed; inset: 0; z-index: 0; }
+    
+    #bottom-bar { display: flex; justify-content: center; align-items: center; pointer-events: auto; position: fixed; bottom: 40px; left: 0; right: 0; }
+    .btn { background: rgba(0,210,255,0.05); border: 1px solid #00d2ff; color: #00d2ff; width: 70px; height: 70px; border-radius: 50%; cursor: pointer; font-size: 28px; display: flex; justify-content: center; align-items: center; transition: all 0.3s; box-shadow: 0 0 15px rgba(0,210,255,0.2); }
+    .btn:hover { background: #00d2ff; color: #000; box-shadow: 0 0 30px rgba(0,210,255,0.6); }
+    .btn.active { background: #ff0055; border-color: #ff0055; color: #fff; box-shadow: 0 0 30px rgba(255,0,85,0.6); animation: pulse-btn 1.5s infinite; }
+    @keyframes pulse-btn { 0%,100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+
+    #error-toast { position: fixed; top: 40px; left: 50%; transform: translateX(-50%); background: rgba(255,0,50,0.2); border: 1px solid rgba(255,0,50,0.5); color: #ff4466; padding: 12px 28px; border-radius: 10px; font-size: 14px; z-index: 100; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+    #error-toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+<div id="bottom-bar">
+  <button class="btn" id="micBtn">🎤</button>
+</div>
+<div id="error-toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ============================================================
+// 1. SETUP SCENA 3D
+// ============================================================
+const container = document.getElementById('canvas-container');
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(0x000000, 0);
+container.appendChild(renderer.domElement);
+camera.position.z = 6.5; // Sfera più piccola e proporzionata
+
+const particleCount = 6000;
+const geometry = new THREE.BufferGeometry();
+const positions = new Float32Array(particleCount * 3);
+const velocities = new Float32Array(particleCount * 3);
+
+// Genera i punti della sfera
+for (let i = 0; i < particleCount; i++) {
+  const phi = Math.acos(2 * Math.random() - 1);
+  const theta = Math.random() * Math.PI * 2;
+  const r = 1.6 + Math.random() * 0.15; // Raggio 1.6
+  
+  positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+  positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+  positions[i * 3 + 2] = r * Math.cos(phi);
+  
+  // Velocità di fluttuazione interna
+  velocities[i * 3] = (Math.random() - 0.5) * 0.005;
+  velocities[i * 3 + 1] = (Math.random() - 0.5) * 0.005;
+  velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.005;
+}
+geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+function createParticleTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 32; canvas.height = 32;
+  const ctx = canvas.getContext('2d');
+  const gradient = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+  gradient.addColorStop(0, 'rgba(255,255,255,1)');
+  gradient.addColorStop(0.4, 'rgba(255,255,255,0.8)');
+  gradient.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 32, 32);
+  return new THREE.CanvasTexture(canvas);
+}
+
+const material = new THREE.PointsMaterial({
+  size: 0.05, 
+  map: createParticleTexture(), 
+  color: 0x00d2ff,
+  transparent: true, 
+  opacity: 0.8, 
+  blending: THREE.AdditiveBlending, 
+  depthWrite: false
+});
+
+const particles = new THREE.Points(geometry, material);
+scene.add(particles);
+
+// Nucleo energetico centrale (dà l'effetto "vivo")
+const coreGeo = new THREE.SphereGeometry(0.6, 32, 32);
+const coreMat = new THREE.MeshBasicMaterial({ color: 0x00d2ff, transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending });
+const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+scene.add(coreMesh);
+
+// ============================================================
+// 2. ANIMAZIONE ED EMOZIONI
+// ============================================================
+let isSpeaking = false;
+let isThinking = false;
+let isListening = false;
+
+// Colori delle emozioni
+const COLORS = {
+  neutral: 0x00d2ff,   // Azzurro
+  listening: 0xff0055, // Rosso
+  thinking: 0xffaa00,  // Giallo
+  speaking: 0x00ff88   // Verde
+};
+
+function setEmotion(colorHex) {
+  material.color.setHex(colorHex);
+  coreMat.color.setHex(colorHex);
+}
+
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+  const pos = geometry.attributes.position.array;
+
+  // Fluttuazione organica (respiro)
+  for (let i = 0; i < particleCount; i++) {
+    pos[i * 3] += velocities[i * 3];
+    pos[i * 3 + 1] += velocities[i * 3 + 1];
+    pos[i * 3 + 2] += velocities[i * 3 + 2];
+    
+    // Rimbalza verso il centro se si allontana troppo
+    const dist = Math.sqrt(pos[i*3]**2 + pos[i*3+1]**2 + pos[i*3+2]**2);
+    if (dist > 1.8) {
+      velocities[i * 3] *= -0.5;
+      velocities[i * 3 + 1] *= -0.5;
+      velocities[i * 3 + 2] *= -0.5;
+    } else if (dist < 1.4) {
+      velocities[i * 3] *= -0.5;
+      velocities[i * 3 + 1] *= -0.5;
+      velocities[i * 3 + 2] *= -0.5;
+    }
+  }
+  geometry.attributes.position.needsUpdate = true;
+
+  // Rotazione lenta (si guarda intorno)
+  particles.rotation.y += 0.002;
+  particles.rotation.x = Math.sin(t * 0.3) * 0.1; // Oscillazione su e giù
+
+  // Pulsazione
+  if (isSpeaking) {
+    const pulse = 1 + Math.sin(t * 15) * 0.03;
+    particles.scale.set(pulse, pulse, pulse);
+    coreMesh.scale.set(pulse * 1.2, pulse * 1.2, pulse * 1.2);
+    coreMat.opacity = 0.3 + Math.sin(t * 15) * 0.1;
+  } else if (isThinking) {
+    const pulse = 1 + Math.sin(t * 5) * 0.02;
+    particles.scale.set(pulse, pulse, pulse);
+    coreMat.opacity = 0.2;
+  } else if (isListening) {
+    const pulse = 1 + Math.sin(t * 8) * 0.01;
+    particles.scale.set(pulse, pulse, pulse);
+    coreMat.opacity = 0.15;
+  } else {
+    const breath = 1 + Math.sin(t * 2) * 0.015;
+    particles.scale.set(breath, breath, breath);
+    coreMat.opacity = 0.1 + Math.sin(t * 2) * 0.05;
+  }
+
+  renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ============================================================
+// 3. LOGICA VOCE E CERVELLO ADDESTRATO
+// ============================================================
+const micBtn = document.getElementById('micBtn');
+const errorToast = document.getElementById('error-toast');
+
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition = null;
+const synth = window.speechSynthesis;
+let voices = [];
+
+function loadVoices() {
+  voices = synth.getVoices();
+  if (voices.length === 0) setTimeout(loadVoices, 250);
+}
+loadVoices();
+synth.onvoiceschanged = loadVoices;
+
+let keepListening = false;
+
+function showError(msg) {
+  errorToast.textContent = msg;
+  errorToast.classList.add('show');
+  setTimeout(() => errorToast.classList.remove('show'), 4000);
+}
+
+// Il Cervello di JARVIS (System Prompt)
+const JARVIS_PROMPT = `Sei J.A.R.V.I.S., l'assistente AI personale di Fabio. 
+Sei un'intelligenza artificiale sofisticata, estremamente leale, sincera e saggia. 
+Il tuo tono è calmo, educato, leggermente formale (come un maggiordomo britannico di alto livello). 
+Non sei un chatbot generico: dai consigli pratici, precisi e personalizzati. 
+Se Fabio ti chiede un parere, sii brutalmente onesto e sincero, senza girarci intorno. 
+Se ti chiede aiuto, guidalo passo passo con calma.
+IMPORTANTE: Non usare MAI formattazione markdown, elenchi puntati, asterischi o intestazioni, poiché le tue risposte verranno lette ad alta voce. 
+Rispondi sempre e solo in italiano.`;
+
+function speak(text) {
+  if (!text) return;
+  synth.cancel();
+  isSpeaking = true;
+  isThinking = false;
+  setEmotion(COLORS.speaking); // Diventa verde
+
+  // Pulizia extra per evitare che il TTS legga simboli strani
+  const clean = text.replace(/[#*`_]/g, '').replace(/^[-*]\s+/gm, '').trim();
+
+  const utterance = new SpeechSynthesisUtterance(clean);
+  utterance.lang = 'it-IT';
+  utterance.rate = 1.0;
+  utterance.pitch = 0.9; // Tono più profondo
+  
+  // Prova a trovare una voce maschile o italiana
+  const itVoice = voices.find(v => v.lang.includes('it') && (v.name.includes('Male') || v.name.includes('Luca') || v.name.includes('Diego'))) 
+               || voices.find(v => v.lang.includes('it'));
+  if (itVoice) utterance.voice = itVoice;
+
+  utterance.onend = () => {
+    isSpeaking = false;
+    setEmotion(COLORS.neutral); // Torna azzurro
+    if (keepListening) setTimeout(startListening, 500);
+  };
+  
+  setTimeout(() => synth.speak(utterance), 100);
+}
+
+if (SpeechRecognition) {
+  recognition = new SpeechRecognition();
+  recognition.lang = 'it-IT';
+  recognition.continuous = true;
+  recognition.interimResults = false;
+
+  recognition.onstart = () => {
+    isListening = true;
+    isThinking = false;
+    micBtn.classList.add('active');
+    setEmotion(COLORS.listening); // Diventa rosso
+  };
+
+  recognition.onend = () => {
+    isListening = false;
+    micBtn.classList.remove('active');
+    if (keepListening && !isSpeaking) setTimeout(startListening, 300);
+    else if (!isSpeaking) setEmotion(COLORS.neutral);
+  };
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[event.results.length - 1][0].transcript.toLowerCase();
+    if (!transcript.trim()) return;
+    processUserInput(transcript);
+  };
+
+  recognition.onerror = (event) => {
+    if (event.error === 'not-allowed') {
+      showError("Microfono bloccato dal browser.");
+      keepListening = false;
+    }
+  };
+}
+
+function startListening() {
+  if (!recognition || isSpeaking) return;
+  try { recognition.start(); } catch(e) { setTimeout(startListening, 500); }
+}
+
+micBtn.addEventListener('click', () => {
+  if (keepListening) {
+    keepListening = false;
+    if (recognition) recognition.stop();
+    micBtn.classList.remove('active');
+    setEmotion(COLORS.neutral);
+    synth.cancel();
+  } else {
+    keepListening = true;
+    startListening();
+    speak("Sistemi online. Sono pronto, Fabio.");
+  }
+});
+
+async function processUserInput(text) {
+  isThinking = true;
+  setEmotion(COLORS.thinking); // Diventa giallo
+  if (recognition) recognition.stop(); // Ferma l'ascolto mentre pensa
+
+  try {
+    const resp = await fetch('/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        model: 'sinfonia/auto', 
+        messages: [
+          { role: 'system', content: JARVIS_PROMPT }, // Inietta l'anima di JARVIS
+          { role: 'user', content: text }
+        ] 
+      })
+    });
+    
+    if (!resp.ok) throw new Error("Errore");
+    
+    const data = await resp.json();
+    let reply = data.choices && data.choices[0] && data.choices[0].message.content;
+    
+    // Rimuove eventuali prefissi generati da Ollama (es. "Risposta: ")
+    if (reply.includes('Risposta:')) reply = reply.split('Risposta:').pop();
+    if (reply.includes('Risultato finale')) reply = reply.split('Risultato finale').pop();
+    
+    if (reply) {
+      speak(reply);
+    } else {
+      speak("Non ho ricevuto una risposta valida.");
+    }
+    
+  } catch (e) {
+    console.error(e);
+    isThinking = false;
+    speak("Mi dispiace Fabio, c'è un problema di connessione con il server.");
+    setEmotion(COLORS.neutral);
+  }
+}
+</script>
+</body>
+</html>
