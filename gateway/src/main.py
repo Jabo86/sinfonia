@@ -98,7 +98,7 @@ async def lifespan(app: FastAPI):
     state.router = Router(state.config, state.quota_manager)
     judge_model = state.config.providers.ensemble.judge.split("/")[-1]
     state.ensemble = EnsembleOrchestrator(state.router, judge_model=judge_model)
-    state.image_router = ImageRouter()
+    state.image_router = ImageRouter(config=state.config)
     state.video_generator = VideoGenerator()
     state.music_generator = MusicGenerator()
     state.translator = Translator()
@@ -555,7 +555,8 @@ class ImageRequest(BaseModel):
     prompt: str
     width: int = 1024
     height: int = 1024
-    model: str = "flux"
+    model: str | None = None
+    image: str | None = None
 
 
 class VideoRequest(BaseModel):
@@ -577,11 +578,13 @@ class TranslationRequest(BaseModel):
 
 @app.post("/v1/images/generations")
 async def generate_image(request: ImageRequest) -> JSONResponse:
-    """Genera un'immagine con Pollinations.ai."""
+    """Genera o modifica un'immagine (Gemini per editing, fallback per text-to-image)."""
     result = await state.image_router.generate(
         prompt=request.prompt,
         width=request.width,
         height=request.height,
+        model=request.model,
+        image=request.image,
     )
     return JSONResponse(content=result.to_dict())
 
