@@ -440,10 +440,20 @@ class ImageRouter:
                     f"Modello '{model}' richiesto ma Google Gemini non è configurato "
                     "(imposta GOOGLE_API_KEY o GEMINI_API_KEY in .env)"
                 )
-            log.info("image_router.gemini", model=model, has_image=bool(image))
-            return await gemini.generate(
-                prompt, width=width, height=height, model=model, image=image
-            )
+            try:
+                log.info("image_router.gemini", model=model, has_image=bool(image))
+                return await gemini.generate(
+                    prompt, width=width, height=height, model=model, image=image
+                )
+            except RuntimeError as e:
+                if image is None and "429" in str(e):
+                    log.warning(
+                        "image_router.gemini.429_fallback",
+                        model=model,
+                        reason=str(e)[:120],
+                    )
+                else:
+                    raise
 
         # 2) Editing richiesto (image in input) -> solo Gemini sa farlo
         if image:

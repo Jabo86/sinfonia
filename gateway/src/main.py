@@ -579,13 +579,18 @@ class TranslationRequest(BaseModel):
 @app.post("/v1/images/generations")
 async def generate_image(request: ImageRequest) -> JSONResponse:
     """Genera o modifica un'immagine (Gemini per editing, fallback per text-to-image)."""
-    result = await state.image_router.generate(
-        prompt=request.prompt,
-        width=request.width,
-        height=request.height,
-        model=request.model,
-        image=request.image,
-    )
+    try:
+        result = await state.image_router.generate(
+            prompt=request.prompt,
+            width=request.width,
+            height=request.height,
+            model=request.model,
+            image=request.image,
+        )
+    except RuntimeError as e:
+        msg = str(e)
+        status = 429 if "429" in msg else 502
+        raise HTTPException(status_code=status, detail=msg)
     return JSONResponse(content=result.to_dict())
 
 
