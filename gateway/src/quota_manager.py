@@ -14,6 +14,7 @@ import asyncio
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +29,34 @@ log = structlog.get_logger()
 WINDOW_RPM = 60          # finestra RPM in secondi
 WINDOW_RPD = 86400       # finestra RPD in secondi
 COOLDOWN_429_SECONDS = 60  # cooldown dopo un 429 (default prudenziale)
+
+# Provider con reset a mezzanotte (fuso orario reale del provider)
+RESET_AT_MIDNIGHT = {
+    "groq": "UTC",                  # 00:00 UTC = 02:00 IT
+    "google_gemini": "US/Pacific",  # 00:00 PT  = 09:00 IT
+}
+
+
+# --- Helper: inizio finestra giornaliera -----------------------------------
+
+def _get_day_start(provider_id: str, now: float) -> float:
+    """
+    Ritorna il timestamp unix dell'inizio della finestra giornaliera (RPD)
+    per il provider indicato.
+
+    - Se il provider compare in RESET_AT_MIDNIGHT, ritorna la mezzanotte
+      del giorno corrente nel suo fuso orario, espresso come timestamp unix.
+    - Altrimenti usa una rolling window di 24h (WINDOW_RPD).
+
+    `now` è un timestamp unix (float), coerente con time.time().
+    """
+    tz_name = RESET_AT_MIDNIGHT.get(provider_id)
+    if tz_name is None:
+        return now - WINDOW_RPD
+    tz = ZoneInfo(tz_name)
+    local_now = datetime.fromtimestamp(now, tz=tz)
+    local_midnight = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    return local_midnight.timestamp()
 
 
 # --- Modello dati ----------------------------------------------------------
@@ -197,7 +226,7 @@ class QuotaManager:
         await self._ensure_initialized()
         now = time.time()
         minute_ago = now - WINDOW_RPM
-        day_ago = now - WINDOW_RPD
+        day_ago = _get_day_start(provider_id, now)
 
         async with aiosqlite.connect(self.db_path) as db:
             async with db.execute(
