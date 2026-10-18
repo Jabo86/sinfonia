@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Sinfonia · Orchestrator</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "SF Mono", Menlo, monospace; background: #0a0e27; color: #c9d1d9; margin: 0; padding: 20px; }
+  h1 { color: #58a6ff; margin: 0 0 16px; font-size: 22px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .panel { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px; }
+  .panel h2 { color: #79c0ff; margin: 0 0 12px; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+  label { display: block; margin: 8px 0 4px; font-size: 12px; color: #8b949e; }
+  input, textarea, button { width: 100%; background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; border-radius: 6px; padding: 8px; font-family: inherit; font-size: 13px; }
+  textarea { min-height: 200px; resize: vertical; }
+  button { background: #238636; border-color: #238636; color: #fff; font-weight: 600; cursor: pointer; margin-top: 12px; padding: 10px; }
+  button:hover { background: #2ea043; }
+  button.stop { background: #da3633; border-color: #da3633; margin-top: 8px; }
+  .status-line { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #21262d; font-size: 13px; }
+  .status-line:last-child { border-bottom: none; }
+  .badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .badge.idle { background: #30363d; }
+  .badge.running { background: #9e6a03; }
+  .badge.done { background: #238636; }
+  .badge.error { background: #da3633; }
+  .log { background: #010409; border: 1px solid #30363d; border-radius: 6px; padding: 12px; height: 280px; overflow-y: auto; font-size: 12px; white-space: pre-wrap; word-break: break-all; }
+  .files { max-height: 280px; overflow-y: auto; }
+  .file-row { display: flex; justify-content: space-between; padding: 6px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+  .file-row:hover { background: #21262d; }
+  .file-path { color: #79c0ff; }
+  .file-size { color: #8b949e; }
+  .preview { background: #010409; border: 1px solid #30363d; border-radius: 6px; padding: 12px; max-height: 400px; overflow: auto; font-size: 12px; white-space: pre; margin-top: 12px; display: none; }
+  .preview-title { font-size: 11px; color: #8b949e; margin-bottom: 8px; text-transform: uppercase; }
+  .phase { color: #d2a8ff; font-weight: 600; }
+</style>
+</head>
+<body>
+<h1>⚙️ Sinfonia Orchestrator</h1>
+<div class="grid">
+
+  <!-- sinistra -->
+  <div>
+    <div class="panel">
+      <h2>Nuovo progetto</h2>
+      <label>Cartella progetto</label>
+      <input id="projectDir" value="/Users/jabo86/sinfonia/workspaces/calc-test">
+      <label>Modello Ollama</label>
+      <input id="model" value="qwen2.5-coder:7b-32k">
+      <label>REQUIREMENTS.md</label>
+      <textarea id="requirements" placeholder="Descrivi cosa deve fare il progetto..."></textarea>
+      <label style="display: flex; align-items: center; gap: 6px; margin-top: 10px;">
+        <input type="checkbox" id="clean" style="width: auto;"> Cancella cartella esistente prima di iniziare
+      </label>
+      <button id="startBtn">▶ Avvia orchestrazione</button>
+      <button id="stopBtn" class="stop" disabled>⏹ Ferma</button>
+    </div>
+
+    <div class="panel" style="margin-top: 16px;">
+      <h2>File prodotti</h2>
+      <div id="files" class="files"><em style="color: #8b949e;">Nessun file ancora.</em></div>
+    </div>
+  </div>
+
+  <!-- destra -->
+  <div>
+    <div class="panel">
+      <h2>Stato</h2>
+      <div class="status-line"><span>Fase</span><span id="phaseBadge" class="badge idle">idle</span></div>
+      <div class="status-line"><span>Modello</span><span id="statusModel">—</span></div>
+      <div class="status-line"><span>Avviato</span><span id="statusStarted">—</span></div>
+      <div class="status-line"><span>Finito</span><span id="statusFinished">—</span></div>
+      <div class="status-line"><span>Verdict</span><span id="statusVerdict">—</span></div>
+    </div>
+
+    <div class="panel" style="margin-top: 16px;">
+      <h2>Log live</h2>
+      <div id="log" class="log">In attesa...</div>
+    </div>
+
+    <div id="preview" class="preview">
+      <div class="preview-title" id="previewTitle"></div>
+      <code id="previewContent"></code>
+    </div>
+  </div>
+
+</div>
+<script src="orchestrator.js"></script>
+</body>
+</html>
