@@ -798,3 +798,63 @@ body { display: flex; }
   .prof-name { display: none; }
   .voice-label { display: none; }
 }
+
+/* ============================================================
+   PULSANTE ELIMINA CONVERSAZIONE
+   ============================================================ */
+.conv-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+.conv-item .conv-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.conv-item .conv-delete {
+  display: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.conv-item:hover .conv-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.conv-item .conv-delete:hover {
+  background: rgba(248, 113, 113, 0.2);
+  color: #f87171;
+}
+
+/* Pulsante "Elimina tutto" sotto la lista Recenti */
+.clear-all-btn {
+  width: calc(100% - 24px);
+  margin: 8px 12px 0;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+}
+.clear-all-btn:hover {
+  border-color: rgba(248, 113, 113, 0.4);
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.05);
+}

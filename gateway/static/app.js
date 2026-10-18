@@ -153,7 +153,22 @@ function renderConversations() {
   for (const conv of list) {
     const div = document.createElement("div");
     div.className = "conv-item" + (conv.id === state.currentId ? " active" : "");
-    div.textContent = conv.title || "Sessione";
+
+    const title = document.createElement("span");
+    title.className = "conv-title";
+    title.textContent = conv.title || "Sessione";
+    div.appendChild(title);
+
+    const del = document.createElement("button");
+    del.className = "conv-delete";
+    del.title = "Elimina conversazione";
+    del.innerHTML = "×";
+    del.onclick = function(e) {
+      e.stopPropagation();
+      deleteConversation(conv.id);
+    };
+    div.appendChild(del);
+
     div.onclick = function() {
       state.currentId = conv.id;
       state.messages = [...conv.messages];
@@ -162,6 +177,40 @@ function renderConversations() {
     };
     c.appendChild(div);
   }
+}
+
+function deleteConversation(id) {
+  const conv = state.conversations.find(c => c.id === id);
+  if (!conv) return;
+  if (!confirm("Eliminare questa conversazione?")) return;
+
+  state.conversations = state.conversations.filter(c => c.id !== id);
+  localStorage.setItem("sinfonia.conversations", JSON.stringify(state.conversations));
+
+  // Se era la conversazione attiva, resetta la chat
+  if (state.currentId === id) {
+    state.currentId = null;
+    state.messages = [];
+    renderMessages();
+  }
+  renderConversations();
+  toast("Conversazione eliminata", "success", 2000);
+}
+
+function clearAllConversations() {
+  if (state.conversations.length === 0) {
+    toast("Nessuna conversazione da eliminare", "info", 2000);
+    return;
+  }
+  if (!confirm("Eliminare TUTTE le conversazioni? Azione non reversibile.")) return;
+
+  state.conversations = [];
+  state.currentId = null;
+  state.messages = [];
+  localStorage.removeItem("sinfonia.conversations");
+  renderMessages();
+  renderConversations();
+  toast("Tutte le conversazioni eliminate", "success", 2000);
 }
 
 function newChat() {
@@ -454,6 +503,7 @@ function init() {
     if (main) main.classList.remove("with-sidebar");
   });
   if ($("#new-chat")) $("#new-chat").addEventListener("click", newChat);
+  if ($("#clear-all-btn")) $("#clear-all-btn").addEventListener("click", clearAllConversations);
   if ($("#search-conv")) $("#search-conv").addEventListener("input", function(e) {
     state.searchQuery = e.target.value;
     renderConversations();
@@ -486,6 +536,8 @@ function init() {
 
 document.addEventListener("DOMContentLoaded", init);
 window.sendMessage = sendMessage;
+window.deleteConversation = deleteConversation;
+window.clearAllConversations = clearAllConversations;
 window.addMessage = addMessage;
 window.renderMessages = renderMessages;
 window.state = state;
