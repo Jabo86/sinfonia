@@ -1,141 +1,140 @@
 (function () {
-  const $ = (id) => document.getElementById(id);
-  let pollTimer = null;
+  var $ = function (id) { return document.getElementById(id); };
+  var pollTimer = null;
 
   function openModal() {
-    const m = $('orchestrator-modal');
+    var m = $('orchestrator-modal');
     if (m) m.classList.add('open');
     poll();
     if (!pollTimer) pollTimer = setInterval(poll, 2000);
   }
-
   function closeModal() {
-    const m = $('orchestrator-modal');
+    var m = $('orchestrator-modal');
     if (m) m.classList.remove('open');
   }
-
   async function startJob() {
-    const body = {
+    var body = {
       project_dir: $('orch-project-dir').value.trim(),
       model: $('orch-model').value.trim(),
       requirements: $('orch-requirements').value.trim(),
+      language: $('orch-language').value,
       clean: $('orch-clean').checked,
     };
-    if (!body.project_dir || !body.requirements) {
-      alert('Compila cartella progetto e requirements.');
-      return;
-    }
+    if (!body.project_dir || !body.requirements) { alert('Compila cartella e requirements'); return; }
     $('orch-start').disabled = true;
     try {
-      const r = await fetch('/v1/orchestrator/start', {
+      var r = await fetch('/v1/orchestrator/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify(body)
       });
-      const j = await r.json();
-      if (!j.ok) {
-        alert('Errore: ' + (j.error || 'sconosciuto'));
-        $('orch-start').disabled = false;
-        return;
-      }
+      var j = await r.json();
+      if (!j.ok) { alert('Errore: ' + (j.error || 'sconosciuto')); $('orch-start').disabled = false; return; }
       $('orch-stop').disabled = false;
       if (!pollTimer) pollTimer = setInterval(poll, 2000);
       poll();
     } catch (e) {
-      alert('Errore di rete: ' + e.message);
+      alert('Errore rete: ' + e.message);
       $('orch-start').disabled = false;
     }
   }
-
   async function stopJob() {
-    try {
-      await fetch('/v1/orchestrator/stop', { method: 'POST' });
-      $('orch-stop').disabled = true;
-    } catch (e) {
-      alert('Errore: ' + e.message);
-    }
+    try { await fetch('/v1/orchestrator/stop', { method: 'POST' }); $('orch-stop').disabled = true; }
+    catch (e) { alert('Errore: ' + e.message); }
   }
-
   async function poll() {
     try {
-      const r = await fetch('/v1/orchestrator/status');
-      const s = await r.json();
-
+      var r = await fetch('/v1/orchestrator/status');
+      var s = await r.json();
+      $('orch-status-lang').textContent = s.language || '—';
       $('orch-status-model').textContent = s.model || '—';
       $('orch-status-started').textContent = s.started_at || '—';
       $('orch-status-finished').textContent = s.finished_at || '—';
       $('orch-status-verdict').textContent = s.verdict || '—';
-
-      const badge = $('orch-phase');
+      var badge = $('orch-phase');
       badge.textContent = s.phase || 'idle';
-      badge.className = 'badge ' + (
-        s.running ? 'running' :
-        s.phase === 'done' ? 'done' :
-        s.phase === 'error' ? 'error' : 'idle'
-      );
-
-      const logEl = $('orch-log');
+      badge.className = 'badge ' + (s.running ? 'running' : s.phase === 'done' ? 'done' : s.phase === 'error' ? 'error' : 'idle');
+      var logEl = $('orch-log');
       logEl.textContent = (s.log || []).join('\n') || 'In attesa...';
       logEl.scrollTop = logEl.scrollHeight;
-
       renderFiles(s.files || []);
-
       if (!s.running && pollTimer) {
         clearInterval(pollTimer);
         pollTimer = null;
         $('orch-start').disabled = false;
         $('orch-stop').disabled = true;
       }
-    } catch (e) {
-      // rete momentaneamente giù, ignora
-    }
+    } catch (e) {}
   }
-
   function renderFiles(files) {
-    const el = $('orch-file-list');
+    var el = $('orch-file-list');
     if (!el) return;
-    if (!files.length) {
-      el.innerHTML = '<em style="color:#6b6b80;">Nessun file ancora.</em>';
-      return;
-    }
+    if (!files.length) { el.innerHTML = '<em style="color:#6b6b80;">Nessun file ancora.</em>'; return; }
     el.innerHTML = '';
-    files.forEach(f => {
-      const row = document.createElement('div');
+    files.forEach(function (f) {
+      var row = document.createElement('div');
       row.className = 'orch-file-row';
       row.innerHTML = '<span class="path">' + f.path + '</span><span class="size">' + f.size + ' B</span>';
-      row.addEventListener('click', () => showFile(f.path));
+      row.addEventListener('click', function () { showFile(f.path); });
       el.appendChild(row);
     });
   }
-
   async function showFile(path) {
     try {
-      const r = await fetch('/v1/orchestrator/file?path=' + encodeURIComponent(path));
+      var r = await fetch('/v1/orchestrator/file?path=' + encodeURIComponent(path));
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      const j = await r.json();
+      var j = await r.json();
       $('orch-preview-title').textContent = j.path;
       $('orch-preview-content').textContent = j.content;
       $('orch-preview').style.display = 'block';
-    } catch (e) {
-      alert('Errore lettura file: ' + e.message);
-    }
+    } catch (e) { alert('Errore lettura file: ' + e.message); }
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
-    const btn = $('orchestrator-btn');
-    if (btn) btn.addEventListener('click', openModal);
-    const close = $('orch-close');
-    if (close) close.addEventListener('click', closeModal);
-    const start = $('orch-start');
-    if (start) start.addEventListener('click', startJob);
-    const stop = $('orch-stop');
-    if (stop) stop.addEventListener('click', stopJob);
-
-    const modal = $('orchestrator-modal');
-    if (modal) {
-      modal.addEventListener('click', (e) => {
-        if (e.target === modal) closeModal();
+  function openImageModal() {
+    var m = $('image-modal');
+    if (m) m.classList.add('open');
+  }
+  function closeImageModal() {
+    var m = $('image-modal');
+    if (m) m.classList.remove('open');
+  }
+  async function generateImage() {
+    var prompt = $('image-prompt').value.trim();
+    var model = $('image-model').value.trim();
+    if (!prompt) { alert('Scrivi un prompt'); return; }
+    $('image-generate').disabled = true;
+    $('image-result').style.display = 'none';
+    try {
+      var body = { prompt: prompt };
+      if (model) body.model = model;
+      var r = await fetch('/v1/images/generations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
       });
-    }
+      var j = await r.json();
+      if (j.detail) { alert('Errore: ' + JSON.stringify(j.detail)); return; }
+      var url = j.url;
+      $('image-result-title').textContent = (j.provider || '?') + ' · ' + (j.model || '?');
+      $('image-result-img').src = url;
+      $('image-result-link').href = url;
+      $('image-result').style.display = 'block';
+    } catch (e) { alert('Errore rete: ' + e.message); }
+    finally { $('image-generate').disabled = false; }
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var b = $('orchestrator-btn'); if (b) b.addEventListener('click', openModal);
+    var c = $('orch-close'); if (c) c.addEventListener('click', closeModal);
+    var s = $('orch-start'); if (s) s.addEventListener('click', startJob);
+    var st = $('orch-stop'); if (st) st.addEventListener('click', stopJob);
+    var m = $('orchestrator-modal');
+    if (m) m.addEventListener('click', function (e) { if (e.target === m) closeModal(); });
+
+    var ib = $('image-btn'); if (ib) ib.addEventListener('click', openImageModal);
+    var ic = $('image-close'); if (ic) ic.addEventListener('click', closeImageModal);
+    var ig = $('image-generate'); if (ig) ig.addEventListener('click', generateImage);
+    var im = $('image-modal');
+    if (im) im.addEventListener('click', function (e) { if (e.target === im) closeImageModal(); });
   });
 })();

@@ -19,13 +19,10 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 </head>
 <body>
-
-  <!-- ORBS BACKGROUND -->
   <div class="orb orb-1"></div>
   <div class="orb orb-2"></div>
   <div class="orb orb-3"></div>
 
-  <!-- ONBOARDING -->
   <div id="onboarding" class="onboarding" style="display: none;">
     <div class="onb-card">
       <div class="onb-logo">🎼</div>
@@ -41,7 +38,6 @@
     </div>
   </div>
 
-  <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <div class="logo">
@@ -55,28 +51,23 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
       </button>
     </div>
-
     <button class="new-chat-btn" id="new-chat">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       <span>Nuova chat</span>
     </button>
-
     <div class="search-wrap">
       <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
       <input type="text" id="search-conv" class="search-input" placeholder="Cerca conversazioni...">
     </div>
-
     <div class="conv-section-title">Recenti</div>
     <div class="conversations" id="conversations"></div>
     <button class="clear-all-btn" id="clear-all-btn" title="Elimina tutte le conversazioni">
       🗑️ Elimina tutti i recenti
     </button>
-
     <div class="credits-panel">
       <div class="credits-title">Stato sistema</div>
       <div class="credits-list" id="credits-list"></div>
     </div>
-
     <div class="sidebar-footer">
       <div class="status-pill" id="status-pill">
         <span class="status-dot"></span>
@@ -85,13 +76,11 @@
     </div>
   </aside>
 
-  <!-- MAIN -->
   <main class="main with-sidebar">
     <header class="topbar">
       <button class="icon-btn menu-btn" id="menu-btn" title="Menu">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
-
       <div class="prof-picker">
         <button class="prof-btn" id="prof-btn" title="Cambia profilo">
           <span id="prof-icon" class="prof-icon">🎼</span>
@@ -100,14 +89,19 @@
         </button>
         <div class="prof-dropdown" id="prof-dropdown"></div>
       </div>
-
       <div class="topbar-spacer"></div>
-
       <div class="topbar-actions">
         <button class="action-btn" id="orchestrator-btn" title="Orchestrator">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3"/>
             <path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m7.08 7.08l4.24 4.24M1 12h6m6 0h6M4.22 19.78l4.24-4.24m7.08-7.08l4.24-4.24"/>
+          </svg>
+        </button>
+        <button class="action-btn" id="image-btn" title="Genera immagine">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
           </svg>
         </button>
         <button class="action-btn" id="export-pdf-btn" title="Esporta in PDF">
@@ -131,7 +125,6 @@
     </header>
 
     <div class="messages" id="messages"></div>
-
     <div class="voice-status" id="voice-status"></div>
 
     <div class="composer-wrap">
@@ -151,7 +144,6 @@
     </div>
   </main>
 
-  <!-- ORCHESTRATOR MODAL -->
   <div id="orchestrator-modal" class="orch-modal">
     <div class="orch-panel">
       <div class="orch-header">
@@ -160,11 +152,17 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
-
       <div class="orch-body">
         <div class="orch-form">
           <label>Cartella progetto</label>
-          <input type="text" id="orch-project-dir" value="/Users/jabo86/sinfonia/workspaces/calc-test">
+          <input type="text" id="orch-project-dir" value="/Users/jabo86/sinfonia/workspaces/progetto">
+          <label>Linguaggio</label>
+          <select id="orch-language" class="orch-select">
+            <option value="python">Python</option>
+            <option value="rust">Rust</option>
+            <option value="javascript">JavaScript</option>
+            <option value="go">Go</option>
+          </select>
           <label>Modello Ollama</label>
           <input type="text" id="orch-model" value="qwen2.5-coder:7b-32k">
           <label>REQUIREMENTS.md</label>
@@ -177,24 +175,52 @@
             <button id="orch-stop" class="orch-btn danger" disabled>⏹ Ferma</button>
           </div>
         </div>
-
         <div class="orch-status">
           <div class="orch-row"><span>Fase</span><span id="orch-phase" class="badge idle">idle</span></div>
+          <div class="orch-row"><span>Linguaggio</span><span id="orch-status-lang">—</span></div>
           <div class="orch-row"><span>Modello</span><span id="orch-status-model">—</span></div>
           <div class="orch-row"><span>Avviato</span><span id="orch-status-started">—</span></div>
           <div class="orch-row"><span>Finito</span><span id="orch-status-finished">—</span></div>
           <div class="orch-row"><span>Verdict</span><span id="orch-status-verdict">—</span></div>
           <div class="orch-log" id="orch-log">In attesa...</div>
         </div>
-
         <div class="orch-files">
           <h3>File prodotti</h3>
-          <div id="orch-file-list" class="orch-file-list">
-            <em>Nessun file ancora.</em>
-          </div>
+          <div id="orch-file-list" class="orch-file-list"><em>Nessun file ancora.</em></div>
           <div id="orch-preview" class="orch-preview" style="display:none;">
             <div class="orch-preview-title" id="orch-preview-title"></div>
             <pre><code id="orch-preview-content"></code></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="image-modal" class="orch-modal">
+    <div class="orch-panel" style="max-width: 720px;">
+      <div class="orch-header">
+        <h2>🎨 Genera immagine</h2>
+        <button class="icon-btn" id="image-close" title="Chiudi">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="orch-body" style="grid-template-columns: 1fr;">
+        <div class="orch-form">
+          <label>Prompt</label>
+          <textarea id="image-prompt" placeholder="Es: un gatto astronauta su Marte, stile pixar" style="min-height: 80px;"></textarea>
+          <label>Provider (opzionale)</label>
+          <input type="text" id="image-model" value="" placeholder="lascia vuoto per Pollinations (gratis)">
+          <div class="orch-actions">
+            <button id="image-generate" class="orch-btn primary">Genera</button>
+          </div>
+          <div id="image-result" style="margin-top: 16px; display: none;">
+            <div class="orch-preview-title" id="image-result-title"></div>
+            <div style="padding: 12px; background: #0a0a12; text-align: center;">
+              <img id="image-result-img" style="max-width: 100%; border-radius: 8px;">
+            </div>
+            <div style="padding: 8px 12px; font-size: 12px; color: #9a9ab0;">
+              <a id="image-result-link" href="#" target="_blank" style="color: #a78bfa;">Apri originale ↗</a>
+            </div>
           </div>
         </div>
       </div>
@@ -205,6 +231,7 @@
 
   <script src="/ui/profile.js"></script>
   <script src="/ui/onboarding.js"></script>
+  <script src="/ui/media_interceptor.js"></script>
   <script src="/ui/app.js"></script>
   <script src="/ui/pdf_export.js"></script>
   <script src="/ui/voice_ui.js"></script>

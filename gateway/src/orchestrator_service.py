@@ -1,17 +1,9 @@
-"""Service: gestisce un job dell'orchestratore in background, con stato in memoria."""
 from __future__ import annotations
-
-import asyncio
-import shutil
-import threading
-import time
-import traceback
+import asyncio, shutil, threading, time, traceback
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
-
 import orchestrator_engine as engine
-
 
 @dataclass
 class JobStatus:
@@ -19,41 +11,43 @@ class JobStatus:
     phase: str = "idle"
     project_dir: str = ""
     model: str = ""
+    language: str = "python"
     started_at: str = ""
     finished_at: str = ""
-    log: list[str] = field(default_factory=list)
-    files: list[dict] = field(default_factory=list)
+    log: list = field(default_factory=list)
+    files: list = field(default_factory=list)
     verdict: str = ""
     error: str = ""
 
-
 class OrchestratorService:
-    def __init__(self) -> None:
+    def __init__(self):
         self._status = JobStatus()
         self._lock = threading.Lock()
-        self._task: asyncio.Task | None = None
+        self._task = None
         self._stop_flag = False
 
-    # ---------- helpers ----------
-
-    def _log(self, msg: str) -> None:
-        line = f"[{time.strftime('%H:%M:%S')}] {msg}"
+    def _log(self, msg):
+        line = "[" + time.strftime("%H:%M:%S") + "] " + msg
         with self._lock:
             self._status.log.append(line)
             if len(self._status.log) > 500:
                 self._status.log = self._status.log[-500:]
 
-    def _refresh_files(self, project_dir: Path) -> None:
+    def _refresh_files(self, project_dir):
+        try:
+            ext = engine.profile()["ext"]
+        except Exception:
+            ext = ".py"
         files = []
-        for p in project_dir.rglob("*.py"):
-            if ".orchestrator" in str(p) or "__pycache__" in str(p):
+        for p in project_dir.rglob("*" + ext):
+            if ".orchestrator" in str(p) or "__pycache__" in str(p) or "target" in str(p) or "node_modules" in str(p):
                 continue
             try:
                 st = p.stat()
                 files.append({
                     "path": str(p.relative_to(project_dir)),
                     "size": st.st_size,
-                    "mtime": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(st.st_mtime)),
+                    "mtime": time.strftime("%H:%M:%S", time.localtime(st.st_mtime)),
                 })
             except OSError:
                 pass
@@ -61,45 +55,42 @@ class OrchestratorService:
         with self._lock:
             self._status.files = files
 
-    # ---------- API ----------
-
-    def get_status(self) -> dict[str, Any]:
+    def get_status(self):
         with self._lock:
             return asdict(self._status)
 
-    async def start(self, project_dir: str, model: str, requirements: str, clean: bool = False) -> dict[str, Any]:
+    async def start(self, project_dir, model, requirements, clean=False, language="python"):
         with self._lock:
             if self._status.running:
-                return {"ok": False, "error": "Job già in esecuzione"}
-
+                return {"ok": False, "error": "Job in esecuzione"}
+        try:
+            engine.set_language(language)
+        except ValueError as e:
+            return {"ok": False, "error": str(e)}
         pd = Path(project_dir).expanduser().resolve()
         if clean and pd.exists():
             shutil.rmtree(pd)
         pd.mkdir(parents=True, exist_ok=True)
         (pd / "REQUIREMENTS.md").write_text(requirements)
         (pd / ".orchestrator").mkdir(exist_ok=True)
-
         with self._lock:
             self._status = JobStatus(
-                running=True,
-                phase="starting",
-                project_dir=str(pd),
-                model=model,
+                running=True, phase="starting", project_dir=str(pd),
+                model=model, language=language,
                 started_at=time.strftime("%Y-%m-%dT%H:%M:%S"),
             )
             self._stop_flag = False
-
         engine.MODEL = model
-        self._log(f"=== START {pd} (model={model}) ===")
+        self._log(f"=== START {pd} (model={model}, lang={language}) ===")
         self._task = asyncio.create_task(self._run(pd))
-        return {"ok": True, "project_dir": str(pd), "model": model}
+        return {"ok": True, "project_dir": str(pd), "model": model, "language": language}
 
-    async def _run(self, project_dir: Path) -> None:
+    async def _run(self, project_dir):
         try:
             await asyncio.to_thread(self._run_sync, project_dir)
         except Exception as e:
             with self._lock:
-                self._status.error = f"{type(e).__name__}: {e}"
+                self._status.error = type(e).__name__ + ": " + str(e)
                 self._status.phase = "error"
             self._log(f"ERRORE: {e}")
             self._log(traceback.format_exc()[-1000:])
@@ -112,7 +103,7 @@ class OrchestratorService:
             self._refresh_files(project_dir)
             self._log("=== FINE ===")
 
-    def _run_sync(self, project_dir: Path) -> None:
+    def _run_sync(self, project_dir):
         state = {
             "requirements": (project_dir / "REQUIREMENTS.md").read_text(),
             "state_path": project_dir / ".orchestrator" / "state.json",
@@ -130,22 +121,25 @@ class OrchestratorService:
             self._status.phase = "developing"
         for spec in files:
             if self._stop_flag:
-                self._log("STOP richiesto, interrompo")
+                self._log("STOP richiesto")
                 return
             target = project_dir / spec["path"]
             if target.exists():
-                self._log(f"SKIP {spec['path']} (esiste già)")
+                self._log(f"SKIP {spec['path']}")
                 continue
             self._log(f"DEVELOPER: scrivo {spec['path']}")
-            engine.developer(state, spec, project_dir)
-            self._log(f"DEVELOPER: {spec['path']} scritto")
-            self._refresh_files(project_dir)
+            try:
+                engine.developer(state, spec, project_dir)
+                self._log(f"DEVELOPER: {spec['path']} scritto")
+                self._refresh_files(project_dir)
+            except Exception as e:
+                self._log(f"DEVELOPER errore: {e}")
 
         with self._lock:
             self._status.phase = "testing"
         for attempt in range(1, engine.MAX_FIX_ATTEMPTS + 1):
             if self._stop_flag:
-                self._log("STOP richiesto, interrompo")
+                self._log("STOP richiesto")
                 return
             ok, out = engine.tester(state, project_dir)
             if ok:
@@ -153,7 +147,7 @@ class OrchestratorService:
                 break
             self._log(f"BUG-FINDER: tentativo {attempt}/{engine.MAX_FIX_ATTEMPTS}")
             if not engine.bug_finder(state, project_dir, out):
-                self._log("BUG-FINDER: nessun fix, esco dal loop")
+                self._log("BUG-FINDER: nessun fix")
                 break
             self._refresh_files(project_dir)
 
@@ -163,6 +157,5 @@ class OrchestratorService:
         with self._lock:
             self._status.verdict = verdict
         self._log(f"REVIEWER: {verdict[:200]}")
-
 
 orchestrator_service = OrchestratorService()

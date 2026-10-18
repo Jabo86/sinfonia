@@ -1,175 +1,40 @@
-.orch-modal {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(6px);
-  z-index: 9999;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-.orch-modal.open { display: flex; }
-.orch-panel {
-  background: #161622;
-  border: 1px solid #2a2a3e;
-  border-radius: 16px;
-  width: 100%;
-  max-width: 1100px;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
-  overflow: hidden;
-  font-family: 'Inter', sans-serif;
-}
-.orch-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 18px 24px;
-  border-bottom: 1px solid #2a2a3e;
-}
-.orch-header h2 { margin: 0; font-size: 18px; color: #e6e6f0; font-weight: 600; }
-.orch-body {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 20px;
-  padding: 24px;
-  overflow-y: auto;
-}
-@media (max-width: 900px) { .orch-body { grid-template-columns: 1fr; } }
-.orch-form label {
-  display: block;
-  font-size: 12px;
-  color: #9a9ab0;
-  margin: 12px 0 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.orch-form input[type="text"],
-.orch-form textarea {
-  width: 100%;
-  background: #0f0f1a;
-  border: 1px solid #2a2a3e;
-  border-radius: 8px;
-  color: #e6e6f0;
-  padding: 10px 12px;
-  font-size: 13px;
-  font-family: inherit;
-  outline: none;
-}
-.orch-form input[type="text"]:focus,
-.orch-form textarea:focus { border-color: #7c3aed; }
-.orch-form textarea { min-height: 180px; resize: vertical; }
-.orch-checkbox {
-  display: flex !important;
-  align-items: center;
-  gap: 8px;
-  margin-top: 12px !important;
-  font-size: 13px !important;
-  text-transform: none !important;
-  color: #c0c0d0 !important;
-}
-.orch-checkbox input { width: auto; margin: 0; }
-.orch-actions { display: flex; gap: 10px; margin-top: 16px; }
-.orch-btn {
-  padding: 10px 18px;
-  border-radius: 8px;
-  border: none;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  font-family: inherit;
-  transition: all 0.15s ease;
-}
-.orch-btn.primary { background: #7c3aed; color: #fff; flex: 1; }
-.orch-btn.primary:hover { background: #8b5cf6; }
-.orch-btn.primary:disabled { opacity: 0.5; cursor: not-allowed; }
-.orch-btn.danger { background: #dc2626; color: #fff; }
-.orch-btn.danger:hover { background: #ef4444; }
-.orch-btn.danger:disabled { opacity: 0.5; cursor: not-allowed; }
-.orch-status .orch-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-  padding: 8px 0;
-  border-bottom: 1px solid #222234;
-}
-.orch-status .orch-row:last-of-type { border-bottom: none; }
-.orch-status .orch-row span:first-child { color: #9a9ab0; }
-.orch-status .orch-row span:last-child { color: #e6e6f0; }
-.badge {
-  padding: 3px 10px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-.badge.idle { background: #2a2a3e; color: #9a9ab0; }
-.badge.running { background: #f59e0b; color: #000; }
-.badge.done { background: #10b981; color: #000; }
-.badge.error { background: #dc2626; color: #fff; }
-.orch-log {
-  background: #0a0a12;
-  border: 1px solid #222234;
-  border-radius: 8px;
-  padding: 12px;
-  height: 280px;
-  overflow-y: auto;
-  font-family: 'SF Mono', Menlo, monospace;
-  font-size: 11.5px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-all;
-  color: #c0c0d0;
-  margin-top: 12px;
-}
-.orch-files h3 {
-  margin: 0 0 12px;
-  font-size: 13px;
-  color: #9a9ab0;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.orch-file-list {
-  border: 1px solid #222234;
-  border-radius: 8px;
-  padding: 8px;
-  max-height: 240px;
-  overflow-y: auto;
-}
-.orch-file-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 12px;
-}
-.orch-file-row:hover { background: #222234; }
-.orch-file-row .path { color: #a78bfa; font-family: 'SF Mono', monospace; }
-.orch-file-row .size { color: #6b6b80; }
-.orch-preview {
-  margin-top: 12px;
-  border: 1px solid #222234;
-  border-radius: 8px;
-  overflow: hidden;
-}
-.orch-preview-title {
-  background: #1a1a2a;
-  padding: 8px 12px;
-  font-size: 12px;
-  color: #a78bfa;
-  font-family: 'SF Mono', monospace;
-  border-bottom: 1px solid #222234;
-}
-.orch-preview pre {
-  margin: 0;
-  padding: 12px;
-  max-height: 300px;
-  overflow: auto;
-  font-size: 11.5px;
-  color: #c0c0d0;
-  background: #0a0a12;
-}
+.orch-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(6px);z-index:9999;align-items:center;justify-content:center;padding:20px}
+.orch-modal.open{display:flex}
+.orch-panel{background:#161622;border:1px solid #2a2a3e;border-radius:16px;width:100%;max-width:1100px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.6);overflow:hidden;font-family:'Inter',sans-serif}
+.orch-header{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid #2a2a3e}
+.orch-header h2{margin:0;font-size:18px;color:#e6e6f0;font-weight:600}
+.orch-body{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;padding:24px;overflow-y:auto}
+@media(max-width:900px){.orch-body{grid-template-columns:1fr}}
+.orch-form label{display:block;font-size:12px;color:#9a9ab0;margin:12px 0 6px;text-transform:uppercase;letter-spacing:.5px}
+.orch-form input[type="text"],.orch-form textarea,.orch-form select{width:100%;background:#0f0f1a;border:1px solid #2a2a3e;border-radius:8px;color:#e6e6f0;padding:10px 12px;font-size:13px;font-family:inherit;outline:none}
+.orch-form input[type="text"]:focus,.orch-form textarea:focus,.orch-form select:focus{border-color:#7c3aed}
+.orch-form textarea{min-height:180px;resize:vertical}
+.orch-checkbox{display:flex!important;align-items:center;gap:8px;margin-top:12px!important;font-size:13px!important;text-transform:none!important;color:#c0c0d0!important}
+.orch-checkbox input{width:auto;margin:0}
+.orch-actions{display:flex;gap:10px;margin-top:16px}
+.orch-btn{padding:10px 18px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s ease}
+.orch-btn.primary{background:#7c3aed;color:#fff;flex:1}
+.orch-btn.primary:hover{background:#8b5cf6}
+.orch-btn.primary:disabled{opacity:.5;cursor:not-allowed}
+.orch-btn.danger{background:#dc2626;color:#fff}
+.orch-btn.danger:hover{background:#ef4444}
+.orch-btn.danger:disabled{opacity:.5;cursor:not-allowed}
+.orch-status .orch-row{display:flex;justify-content:space-between;font-size:13px;padding:8px 0;border-bottom:1px solid #222234}
+.orch-status .orch-row:last-of-type{border-bottom:none}
+.orch-status .orch-row span:first-child{color:#9a9ab0}
+.orch-status .orch-row span:last-child{color:#e6e6f0}
+.badge{padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600;text-transform:uppercase}
+.badge.idle{background:#2a2a3e;color:#9a9ab0}
+.badge.running{background:#f59e0b;color:#000}
+.badge.done{background:#10b981;color:#000}
+.badge.error{background:#dc2626;color:#fff}
+.orch-log{background:#0a0a12;border:1px solid #222234;border-radius:8px;padding:12px;height:280px;overflow-y:auto;font-family:'SF Mono',Menlo,monospace;font-size:11.5px;line-height:1.5;white-space:pre-wrap;word-break:break-all;color:#c0c0d0;margin-top:12px}
+.orch-files h3{margin:0 0 12px;font-size:13px;color:#9a9ab0;text-transform:uppercase;letter-spacing:.5px}
+.orch-file-list{border:1px solid #222234;border-radius:8px;padding:8px;max-height:240px;overflow-y:auto}
+.orch-file-row{display:flex;justify-content:space-between;padding:8px 10px;border-radius:6px;cursor:pointer;font-size:12px}
+.orch-file-row:hover{background:#222234}
+.orch-file-row .path{color:#a78bfa;font-family:'SF Mono',monospace}
+.orch-file-row .size{color:#6b6b80}
+.orch-preview{margin-top:12px;border:1px solid #222234;border-radius:8px;overflow:hidden}
+.orch-preview-title{background:#1a1a2a;padding:8px 12px;font-size:12px;color:#a78bfa;font-family:'SF Mono',monospace;border-bottom:1px solid #222234}
+.orch-preview pre{margin:0;padding:12px;max-height:300px;overflow:auto;font-size:11.5px;color:#c0c0d0;background:#0a0a12}

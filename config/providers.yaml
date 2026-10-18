@@ -15,6 +15,10 @@ providers:
     - qwen3:8b-8k
     - llama3.2:3b
     - qwen3:14b
+    - qwen2.5-coder:14b
+    - qwen2.5-coder:14b-32k
+    - qwen2.5-coder:7b
+    - qwen2.5-coder:7b-32k
   groq:
     name: Groq
     api_base: https://api.groq.com/openai/v1

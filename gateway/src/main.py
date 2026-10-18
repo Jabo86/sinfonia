@@ -37,6 +37,7 @@ from voice_api import router as voice_router
 from self_healer import SelfHealer
 from image_providers import ImageRouter
 from intent_classifier import Intent, classify, extract_prompt
+from orchestrator_routes import router as orchestrator_router
 from realtime import build_system_prompt, build_voice_prompt, detect_weather_city, get_weather, GIORNI, MESI
 from profession_manager import get_profession_manager
 from file_reader import read_file_bytes
