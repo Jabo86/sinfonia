@@ -17,11 +17,7 @@ class StartRequest(BaseModel):
 @router.post("/start")
 async def start(req: StartRequest) -> dict[str, Any]:
     return await orchestrator_service.start(
-        project_dir=req.project_dir,
-        model=req.model,
-        requirements=req.requirements,
-        clean=req.clean,
-        language=req.language,
+        project_dir=req.project_dir, model=req.model, requirements=req.requirements, clean=req.clean, language=req.language
     )
 
 @router.get("/status")
@@ -31,14 +27,11 @@ async def status() -> dict[str, Any]:
 @router.get("/file")
 async def file_content(path: str) -> dict[str, Any]:
     st = orchestrator_service.get_status()
-    if not st["project_dir"]:
-        raise HTTPException(404, "Nessun job attivo")
+    if not st["project_dir"]: raise HTTPException(404, "Nessun job attivo")
     root = Path(st["project_dir"]).resolve()
     target = (root / path).resolve()
-    if not str(target).startswith(str(root)):
-        raise HTTPException(400, "Path non valido")
-    if not target.exists() or not target.is_file():
-        raise HTTPException(404, "File non trovato")
+    if not str(target).startswith(str(root)): raise HTTPException(400, "Path non valido")
+    if not target.exists() or not target.is_file(): raise HTTPException(404, "File non trovato")
     return {"path": path, "content": target.read_text(errors="replace")}
 
 @router.post("/stop")
