@@ -1,0 +1,28 @@
+/* Modali generici */
+.orch-modal { display: none !important; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center; padding: 20px; }
+.orch-modal.open { display: flex !important; }
+.orch-panel { background: #161622; border: 1px solid #2a2a3e; border-radius: 16px; width: 100%; max-width: 1100px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
+.orch-header { padding: 18px 24px; border-bottom: 1px solid #2a2a3e; display: flex; justify-content: space-between; align-items: center; }
+.orch-header h2 { margin: 0; font-size: 18px; color: #e6e6f0; font-weight: 600; }
+.orch-body { padding: 24px; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+@media (max-width: 900px) { .orch-body { grid-template-columns: 1fr; } }
+.orch-form label { display: block; font-size: 12px; color: #9a9ab0; margin: 12px 0 6px; text-transform: uppercase; }
+.orch-form input, .orch-form textarea, .orch-form select { width: 100%; background: #0f0f1a; border: 1px solid #2a2a3e; border-radius: 8px; color: #e6e6f0; padding: 10px 12px; font-size: 13px; }
+.orch-actions { display: flex; gap: 10px; margin-top: 16px; }
+.orch-btn { padding: 10px 18px; border-radius: 8px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; }
+.orch-btn.primary { background: #7c3aed; color: #fff; flex: 1; }
+.orch-btn.danger { background: #dc2626; color: #fff; }
+.orch-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; padding: 8px 0; border-bottom: 1px solid #222234; }
+.badge { padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+.badge.idle { background: #2a2a3e; color: #9a9ab0; }
+.orch-log { background: #0a0a12; border: 1px solid #222234; border-radius: 8px; padding: 12px; height: 200px; overflow-y: auto; font-family: monospace; font-size: 12px; color: #c0c0d0; margin-top: 12px; }
+
+/* Calendario */
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 20px; }
+.cal-day-name { text-align: center; font-size: 11px; color: #9a9ab0; font-weight: 600; }
+.cal-cell { background: #161622; border: 1px solid #2a2a3e; border-radius: 6px; min-height: 70px; padding: 6px; cursor: pointer; }
+.cal-cell.today { border-color: #00d2ff; box-shadow: 0 0 10px rgba(0,210,255,0.2); }
+.cal-cell.selected { border-color: #00ff88; }
+.cal-date-num { font-size: 12px; color: #c0c0d0; font-weight: 600; display: block; }
+.cal-ev-badge { display: inline-block; background: #7c3aed; color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 10px; margin-top: 4px; }
+.cal-ev-dot { display: inline-block; width: 6px; height: 6px; background: #00ff88; border-radius: 50%; margin-right: 4px; }

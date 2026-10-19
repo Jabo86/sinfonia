@@ -42,6 +42,7 @@ from intent_classifier import Intent, classify, extract_prompt
 JARVIS_SYSTEM_PROMPT = "Sei J.A.R.V.I.S., l'assistente AI personale di Fabio. Sei sofisticato, leale, sincero e saggio. Il tuo tono è calmo, educato, leggermente formale (come un maggiordomo britannico di alto livello). Non sei un chatbot generico: dai consigli pratici, precisi e personalizzati. Se Fabio ti chiede un parere, sii brutalmente onesto e sincero. Se ti chiede aiuto, guidalo passo passo. IMPORTANTE: Non usare MAI formattazione markdown, elenchi puntati, asterischi o intestazioni, poiché le tue risposte verranno lette ad alta voce. Rispondi sempre e solo in italiano."
 # -----------------------------
 
+from calendar_routes import router as calendar_router
 from orchestrator_routes import router as orchestrator_router
 from realtime import build_system_prompt, build_voice_prompt, detect_weather_city, get_weather, GIORNI, MESI
 from profession_manager import get_profession_manager
@@ -148,6 +149,7 @@ app = FastAPI(
 )
 
 app.include_router(orchestrator_router)
+app.include_router(calendar_router)
 
 # Voice API
 app.include_router(voice_router)
